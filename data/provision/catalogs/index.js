@@ -804,15 +804,18 @@ var catalogs = [
                 "env": {
                     "ELASTICSEARCH_URL": {
                         "type": "userInput",
-                        "default": "http://elasticsearch:9200"
+                        "default": "http://elasticsearch:9200",
+                        "required": true
                     },
                     "ELASTICSEARCH_USERNAME": {
                         "type": "userInput",
-                        "default": ""
+                        "default": "",
+                        "required": false
                     },
                     "ELASTICSEARCH_PASSWORD": {
                         "type": "userInput",
-                        "default": ""
+                        "default": "",
+                        "required": false
                     }
                 },
                 "cmd": {
