@@ -1,6 +1,6 @@
 'use strict';
 
-var defaultVoluming = {}, mongoVoluming = {}, esVoluming = {};
+var defaultVoluming = {}, mongoVoluming = {}, esVoluming = {}, dockerSocketVoluming = {};
 if (process.env.SOAJS_DEPLOY_HA === 'docker') {
     defaultVoluming = {
         "volumes": [
@@ -26,6 +26,16 @@ if (process.env.SOAJS_DEPLOY_HA === 'docker') {
                 "Type": "volume",
                 "Source": "/usr/share/elasticsearch/custom/data/",
                 "Target": "/usr/share/elasticsearch/data/"
+            }
+        ]
+    };
+    dockerSocketVoluming = {
+        "volumes": [
+            {
+                "Type": "bind",
+                "ReadOnly": true,
+                "Source": "/var/run/docker.sock",
+                "Target": "/var/run/docker.sock"
             }
         ]
     };
@@ -79,13 +89,29 @@ else if (process.env.SOAJS_DEPLOY_HA === 'kubernetes') {
             }
         ]
     };
+    dockerSocketVoluming = {
+        "volumes": [
+            {
+                "name": "docker-sock",
+                "hostPath": {
+                    "path": "/var/run/docker.sock"
+                }
+            }
+        ],
+        "volumeMounts": [
+            {
+                "mountPath": "/var/run/docker.sock",
+                "name": "docker-sock"
+            }
+        ]
+    };
 }
 
 var catalogs = [
     {
         "name": "Service Recipe",
-	    "type": "soajs",
-	    "subtype": "service",
+        "type": "soajs",
+        "subtype": "service",
         "description": "This is a sample service catalog recipe",
         "locked": true,
         "recipe": {
@@ -96,7 +122,7 @@ var catalogs = [
                     "tag": "latest",
                     "pullPolicy": "Always"
                 },
-	            "specifyGitConfiguration": true,
+                "specifyGitConfiguration": true,
                 "readinessProbe": {
                     "httpGet": {
                         "path": "/heartbeat",
@@ -285,8 +311,8 @@ var catalogs = [
     },
     {
         "name": "Daemon Recipe",
-	    "type": "soajs",
-	    "subtype": "daemon",
+        "type": "soajs",
+        "subtype": "daemon",
         "description": "This is a sample daemon recipe",
         "locked": true,
         "recipe": {
@@ -297,7 +323,7 @@ var catalogs = [
                     "tag": "latest",
                     "pullPolicy": "Always"
                 },
-	            "specifyGitConfiguration": true,
+                "specifyGitConfiguration": true,
                 "readinessProbe": {
                     "httpGet": {
                         "path": "/heartbeat",
@@ -620,6 +646,184 @@ var catalogs = [
                     "deploy": {
                         "command": [],
                         "args": []
+                    }
+                }
+            }
+        }
+    },
+    {
+        "name": "Metricbeat Recipe",
+        "type": "elk",
+        "description": "This is a sample metricbeat recipe",
+        "recipe": {
+            "deployOptions": {
+                "image": {
+                    "prefix": "soajsorg",
+                    "name": "metricbeat",
+                    "tag": "latest",
+                    "pullPolicy": "Always"
+                },
+                "container": {
+                    "network": "",
+                    "workingDir": "/opt/soajs/deployer"
+                },
+                "voluming": JSON.parse(JSON.stringify(dockerSocketVoluming))
+            },
+            "buildOptions": {
+                "env": {
+                    "SOAJS_ANALYTICS_ES_NB": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_NB"
+                    },
+                    "SOAJS_ANALYTICS_ES_IP": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_IP_N"
+                    },
+                    "SOAJS_ANALYTICS_ES_PORT": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_PORT_N"
+                    },
+                    "SOAJS_ANALYTICS_ES_USERNAME": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_USERNAME"
+                    },
+                    "SOAJS_ANALYTICS_ES_PASSWORD": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_PASSWORD"
+                    }
+                },
+                "cmd": {
+                    "deploy": {
+                        "command": [
+                            "bash",
+                            "-c"
+                        ],
+                        "args": [
+                            "node index.js -T metricbeat"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    {
+        "name": "Logstash Recipe",
+        "type": "elk",
+        "description": "This is a sample logstash recipe",
+        "recipe": {
+            "deployOptions": {
+                "image": {
+                    "prefix": "soajsorg",
+                    "name": "logstash",
+                    "tag": "latest",
+                    "pullPolicy": "Always"
+                },
+                "container": {
+                    "network": "",
+                    "workingDir": "/opt/soajs/deployer"
+                },
+                "voluming": {
+                    "volumes": [],
+                    "volumeMounts": []
+                },
+                "ports": [
+                    {
+                        "name": "logstash",
+                        "isPublished": false,
+                        "target": 12201
+                    }
+                ]
+            },
+            "buildOptions": {
+                "env": {
+                    "SOAJS_ANALYTICS_ES_NB": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_NB"
+                    },
+                    "SOAJS_ANALYTICS_ES_IP": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_IP_N"
+                    },
+                    "SOAJS_ANALYTICS_ES_PORT": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_PORT_N"
+                    },
+                    "SOAJS_ANALYTICS_ES_USERNAME": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_USERNAME"
+                    },
+                    "SOAJS_ANALYTICS_ES_PASSWORD": {
+                        "type": "computed",
+                        "value": "$SOAJS_ANALYTICS_ES_PASSWORD"
+                    }
+                },
+                "cmd": {
+                    "deploy": {
+                        "command": [
+                            "bash",
+                            "-c"
+                        ],
+                        "args": [
+                            "node index.js -T logstash"
+                        ]
+                    }
+                }
+            }
+        }
+    },
+    {
+        "name": "Kibana Recipe",
+        "type": "elk",
+        "description": "This is a sample kibana recipe",
+        "recipe": {
+            "deployOptions": {
+                "image": {
+                    "prefix": "soajsorg",
+                    "name": "kibana",
+                    "tag": "latest",
+                    "pullPolicy": "Always"
+                },
+                "container": {
+                    "network": "",
+                    "workingDir": "/opt/soajs/deployer"
+                },
+                "voluming": {
+                    "volumes": [],
+                    "volumeMounts": []
+                },
+                "ports": [
+                    {
+                        "name": "kibana",
+                        "isPublished": true,
+                        "target": 5601,
+                        "published": 2601
+                    }
+                ]
+            },
+            "buildOptions": {
+                "env": {
+                    "ELASTICSEARCH_URL": {
+                        "type": "userInput",
+                        "default": "http://elasticsearch:9200"
+                    },
+                    "ELASTICSEARCH_USERNAME": {
+                        "type": "userInput",
+                        "default": ""
+                    },
+                    "ELASTICSEARCH_PASSWORD": {
+                        "type": "userInput",
+                        "default": ""
+                    }
+                },
+                "cmd": {
+                    "deploy": {
+                        "command": [
+                            "bash",
+                            "-c"
+                        ],
+                        "args": [
+                            "node index.js -T kibana"
+                        ]
                     }
                 }
             }
