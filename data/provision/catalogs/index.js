@@ -120,7 +120,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "soajs",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "specifyGitConfiguration": true,
                 "readinessProbe": {
@@ -135,7 +135,7 @@ var catalogs = [
                     "failureThreshold": 3
                 },
                 "restartPolicy": {
-                    "condition": "", //Always || OnFailure || Never
+                    "condition": "", //IfNotPresent || OnFailure || Never
                     "maxAttempts": 0 //only valid for docker
                 },
                 "container": {
@@ -264,7 +264,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "soajs",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "readinessProbe": {
                     "httpGet": {
@@ -321,7 +321,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "soajs",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "specifyGitConfiguration": true,
                 "readinessProbe": {
@@ -460,7 +460,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "nginx",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "readinessProbe": {
                     "httpGet": {
@@ -558,7 +558,7 @@ var catalogs = [
                     "prefix": "",
                     "name": "mongo",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "readinessProbe": {
                     "httpGet": {
@@ -610,7 +610,7 @@ var catalogs = [
                     "prefix": "",
                     "name": "elasticsearch",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "readinessProbe": {
                     "httpGet": {
