@@ -661,7 +661,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "metricbeat",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "container": {
                     "network": "",
@@ -716,7 +716,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "logstash",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "container": {
                     "network": "",
@@ -781,7 +781,7 @@ var catalogs = [
                     "prefix": "soajsorg",
                     "name": "kibana",
                     "tag": "latest",
-                    "pullPolicy": "Always"
+                    "pullPolicy": "IfNotPresent"
                 },
                 "container": {
                     "network": "",
