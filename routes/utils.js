@@ -195,8 +195,8 @@ module.exports = {
         }
         //add elasticsearch cluster
 	    if (es_clusters) {
-		    var es_Ext = es_clusters.es_Ext;
-		    if (!es_Ext) {
+		    var external = es_clusters.external;
+		    if (!external) {
 			    if (body.deployment.deployDriver.indexOf("container.docker") !== -1) {
 				    es_clusters.servers = [
 					    {
@@ -222,7 +222,7 @@ module.exports = {
 	    }
         delete clusters.replicaSet;
         delete clusters.mongoExt;
-	    delete clusters.es_Ext;
+	    delete clusters.external;
         profileData += 'module.exports = ' + JSON.stringify(clusters, null, 2) + ';';
         fs.writeFileSync(folder + "profile.js", profileData, "utf8");
 
@@ -273,19 +273,28 @@ module.exports = {
 
 	    var uid = uuid.v4();
 	    if (es_clusters) {
+		    if(es_clusters.external){
+			    settings = settings.replace(/"%external%"/g, "true", null, 2);
+		    }
+		    else {
+			    settings = settings.replace(/"%external%"/g, "false", null, 2);
+		    }
+		    delete es_clusters.external;
 		    envData = envData.replace(/"%es_analytics_cluster%"/g, JSON.stringify(es_clusters, null, 2));
 		    envData = envData.replace(/"%es_analytics_cluster_name%"/g, JSON.stringify("es_analytics_cluster_" + uid), null ,2);
 		    envData = envData.replace(/%es_database_name%/g, "es_analytics_db_" + uid);
 		    envData = envData.replace(/"%databases_value%"/g, JSON.stringify({
 			    "cluster": "es_analytics_cluster_" + uid,
-			    "tenantSpecific": false
+			    "tenantSpecific": false,
+			    "usedForAnalytics": true
 		    }, null, 2));
 		    settings = settings.replace(/"%db_name%"/g, JSON.stringify("es_analytics_db_" + uid), null ,2);
 	    }
 	    else {
 		    envData = envData.replace(/"%es_analytics_cluster_name%": "%es_analytics_cluster%",/g, '');
 		    envData = envData.replace(/"%es_database_name%": "%databases_value%",/g, '');
-		    settings = settings.replace(/"db_name": "%db_name%"/g, '');
+		    settings = settings.replace(/"db_name": "%db_name%",/g, '');
+		    settings = settings.replace(/"%external%"/g, "false", null ,2);
 	    }
 	    fs.writeFile(folder + "analytics/settings.js", settings, "utf8");
         envData = envData.replace(/%keySecret%/g, body.security.key);
@@ -458,7 +467,7 @@ module.exports = {
 	"verifyEsIP": function (req, res, cb) {
 		var tempData = req.soajs.inputmaskData.es_clusters;
 		if (tempData) {
-			if (tempData.es_Ext) {
+			if (tempData.external) {
 				for (var i = 0; i < tempData.servers.length; i++) {
 					if (!tempData.servers[i].host)
 						return cb("noIP");
@@ -535,16 +544,15 @@ module.exports = {
                 }
 
 	            envs['SOAJS_DEPLOY_ANALYTICS'] = body.deployment.deployAnalytics ? true : false;
-
-	            if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = body.clusters.es_Ext || false;
-		            envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers);
-		            envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam);
-		            envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam);
-	            }
-	            else {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = false
-	            }
+	            // if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.ext || false;
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers); //do i need this?
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam); //do i need this?
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam); //do i need this?
+	            // }
+	            // else {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = false
+	            // }
                 //add readiness probes environment variables
                if(body.deployment.readinessProbe){
                    envs["KUBE_INITIAL_DELAY"] = body.deployment.readinessProbe.initialDelaySeconds;
@@ -641,15 +649,15 @@ module.exports = {
                 }
 	            envs['SOAJS_DEPLOY_ANALYTICS'] = body.deployment.deployAnalytics ? true : false;
 
-	            if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.es_Ext || false;
-		            envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers);
-		            envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam);
-		            envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam);
-	            }
-	            else {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = false
-	            }
+	            // if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.external || false;
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers);
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam);
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam);
+	            // }
+	            // else {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = false
+	            // }
                 //add readiness probes environment variables
                if(body.deployment.readinessProbe){
                    envs["KUBE_INITIAL_DELAY"] = body.deployment.readinessProbe.initialDelaySeconds;

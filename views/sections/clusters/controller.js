@@ -55,12 +55,32 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 			resizeContent();
         }, 100);
 	};
+	
+	$scope.uncheckElastic = function() {
+		if(!$scope.es_clusters.external) {
+			$scope.es_clusters.external = false;
+			$scope.resetElasticInput();
+		}
+		$timeout(function(){
+			resizeContent();
+		}, 100);
+	};
 
 	$scope.resetMongoInput = function() {
 		if(!$scope.clusters.isReplica) {
 			$scope.clusters.replicaSet = "";
         	$scope.clusters.servers = [$scope.clusters.servers[0]];
     	}
+		$timeout(function(){
+			resizeContent();
+		}, 100);
+	};
+	
+	$scope.resetElasticInput = function() {
+		if(!$scope.es_clusters.external) {
+			$scope.es_clusters.external = "";
+			$scope.es_clusters.servers = [$scope.es_clusters.servers[0]];
+		}
 		$timeout(function(){
 			resizeContent();
 		}, 100);
@@ -188,7 +208,7 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 			};
 			if ($scope.deployAnalytics) {
 				$scope.es_clusters = {
-					"es_Ext": (response && response.es_clusters && response.es_clusters.es_Ext) ? response.es_clusters.es_Ext : false,
+					"external": (response && response.es_clusters && response.es_clusters.external) ? response.es_clusters.external : false,
 					"servers": (response && response.es_clusters && response.es_clusters.servers) ? response.es_clusters.servers : [{
 						"host": "127.0.0.1",
 						"port": 9200

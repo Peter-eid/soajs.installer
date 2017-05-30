@@ -9,7 +9,8 @@ var settings = [
         },
 	    "mongoImported": true,
 	    "elasticsearch": {
-        	"db_name": "%db_name%"
+        	"db_name": "%db_name%",
+		    "external": "%external%"
         }
     }
 ];

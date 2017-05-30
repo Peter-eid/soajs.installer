@@ -77,7 +77,7 @@ var lib= {
 			}
 		}
 	},
-	"deployGroups": ['db', 'elk', 'core', 'nginx'],
+	"deployGroups": ['db', 'core', 'nginx'],
 	"services":{
 		"path": {
 			"dir": __dirname + '/services/',
