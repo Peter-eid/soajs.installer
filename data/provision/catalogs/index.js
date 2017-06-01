@@ -6,7 +6,7 @@ if (process.env.SOAJS_DEPLOY_HA === 'docker') {
         "volumes": [
             {
                 "Type": "volume",
-                "Source": "soajs_log_volume",
+                "Source": "soajs-log-volume",
                 "Target": "/var/log/soajs/"
             }
         ]

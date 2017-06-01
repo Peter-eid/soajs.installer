@@ -72,7 +72,7 @@ var lib= {
 		},
 		"volumes": {
 			"log": {
-				"label": "soajs_log_volume",
+				"label": "soajs-log-volume",
 				"path": "/var/log/soajs/"
 			}
 		}
