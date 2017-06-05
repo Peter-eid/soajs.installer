@@ -695,7 +695,7 @@ var catalogs = [
                 "cmd": {
                     "deploy": {
                         "command": [
-                            "bash",
+                            "sh",
                             "-c"
                         ],
                         "args": [
@@ -796,7 +796,7 @@ var catalogs = [
                         "name": "kibana",
                         "isPublished": true,
                         "target": 5601,
-                        "published": 2601
+                        "published": 32601
                     }
                 ]
             },
