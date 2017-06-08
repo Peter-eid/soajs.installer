@@ -807,16 +807,14 @@ var catalogs = [
                         "default": "http://elasticsearch:9200",
                         "required": true
                     },
-                    "ELASTICSEARCH_USERNAME": {
-                        "type": "userInput",
-                        "default": "",
-                        "required": false
-                    },
-                    "ELASTICSEARCH_PASSWORD": {
-                        "type": "userInput",
-                        "default": "",
-                        "required": false
-                    }
+	                "SOAJS_ANALYTICS_ES_USERNAME": {
+		                "type": "computed",
+		                "value": "$SOAJS_ANALYTICS_ES_USERNAME"
+	                },
+	                "SOAJS_ANALYTICS_ES_PASSWORD": {
+		                "type": "computed",
+		                "value": "$SOAJS_ANALYTICS_ES_PASSWORD"
+	                }
                 },
                 "cmd": {
                     "deploy": {
