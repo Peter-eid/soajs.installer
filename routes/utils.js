@@ -321,7 +321,11 @@ module.exports = {
         tntData = tntData.replace(/%extKey1%/g, body.security.extKey1);
         tntData = tntData.replace(/%extKey2%/g, body.security.extKey2);
         fs.writeFile(folder + "tenants/owner.js", tntData, "utf8");
-
+	
+        //update image
+	    var catalogs = fs.readFileSync(folder + "catalogs/index.js", "utf8");
+	    catalogs = catalogs.replace(/%imagePrefix%/g, body.deployment.imagePrefix);
+	    fs.writeFile(folder + "catalogs/index.js", catalogs, "utf8");
         //remove unneeded file
         fs.unlinkSync(folder + "tenants/info.js");
     },

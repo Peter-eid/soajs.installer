@@ -658,7 +658,7 @@ var catalogs = [
         "recipe": {
             "deployOptions": {
                 "image": {
-                    "prefix": "soajsorg",
+                    "prefix": "%imagePrefix%",
                     "name": "metricbeat",
                     "tag": "latest",
                     "pullPolicy": "IfNotPresent"
@@ -713,7 +713,7 @@ var catalogs = [
         "recipe": {
             "deployOptions": {
                 "image": {
-                    "prefix": "soajsorg",
+                    "prefix": "%imagePrefix%",
                     "name": "logstash",
                     "tag": "latest",
                     "pullPolicy": "IfNotPresent"
@@ -778,7 +778,7 @@ var catalogs = [
         "recipe": {
             "deployOptions": {
                 "image": {
-                    "prefix": "soajsorg",
+                    "prefix": "%imagePrefix%",
                     "name": "kibana",
                     "tag": "latest",
                     "pullPolicy": "IfNotPresent"

@@ -346,6 +346,19 @@ var lib = {
 	    
         return serviceRecipe;
     },
+	
+	/**
+	 * Customizes a new service recipe used to deploy the Elk services of the dashboard environment
+	 * @returns {*}
+	 */
+	updateElkeRecipes (allRecipes) {
+		for (var y = allRecipes.length - 1; y >= 0; y--) {
+			if (allRecipes[y].type === 'elk' || allRecipes[y].type === 'es') {
+				allRecipes.splice(y, 1);
+			}
+		}
+		return allRecipes;
+	},
 
     importData: function (mongoInfo, cb) {
         utilLog.log('Importing provision data to:', profile.servers[0].host + ":" + profile.servers[0].port);
@@ -367,6 +380,7 @@ var lib = {
                     //update the catalog recipes to include data used for dashboard environment deployment
                     dashboardCatalogEntries[0] = lib.updateServiceRecipe(dashboardCatalogEntries[0]);
                     dashboardCatalogEntries[1] = lib.updateNginxRecipe(dashboardCatalogEntries[1]);
+                    dashboardCatalogEntries = lib.updateElkeRecipes(catalogDefaulEntries);
                     //add catalogs to the database
                     mongo.insert("catalogs", dashboardCatalogEntries, true, (error, catalogEntries) => {
                         if(error){
@@ -776,14 +790,7 @@ var lib = {
 			else {
 				return cb(new Error("No Elastic db name found!"));
 			}
-			// console.log(opts.esClient)
-			// console.log("--------")
-			// function logAllProperties(obj) {
-			// 	if (obj == null) return; // recursive approach
-			// 	console.log(Object.getOwnPropertyNames(obj));
-			// 	logAllProperties(Object.getPrototypeOf(obj));
-			// }
-			// logAllProperties(opts.esClient)
+			
 			analytics.activateAnalytics(opts, 'installer', cb);
 		});
 	},
@@ -1336,9 +1343,6 @@ var lib = {
 	
 	closeDbCon: function (cb) {
 		mongo.closeDb();
-		// if (esClient) {
-		// 	esClient.close();
-		// }
 		return cb();
 	}
 };
