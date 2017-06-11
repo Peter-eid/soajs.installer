@@ -8,6 +8,14 @@ if (process.env.SOAJS_DEPLOY_HA === 'docker') {
                 "Type": "volume",
                 "Source": "soajs-log-volume",
                 "Target": "/var/log/soajs/"
+            },
+            //NOTE: Voluming the unix socket is only required for the controller
+            //NOTE: It is not required for any other service and can be removed
+            {
+                "Type": "bind",
+                "ReadOnly": true,
+                "Source": "/var/run/docker.sock",
+                "Target": "/var/run/docker.sock"
             }
         ]
     };
@@ -140,7 +148,7 @@ var catalogs = [
                 },
                 "container": {
                     "network": "", //container network for docker
-                    "workingDir": "" //container working directory
+                    "workingDir": "/opt/soajs/deployer/" //container working directory
                 },
                 "voluming": JSON.parse(JSON.stringify(defaultVoluming))
             },
@@ -246,8 +254,8 @@ var catalogs = [
                 },
                 "cmd": {
                     "deploy": {
-                        "command": ["bash", "-c"],
-                        "args": ["node index.js -T service"]
+                        "command": ["bash"],
+                        "args": ["-c","node index.js -T service"]
                     }
                 }
             }
@@ -283,7 +291,7 @@ var catalogs = [
                 },
                 "container": {
                     "network": "", //container network for docker
-                    "workingDir": "" //container working directory
+                    "workingDir": "/opt/soajs/deployer/" //container working directory
                 },
                 "voluming": {
                     "volumes": [], //array of objects
@@ -302,8 +310,8 @@ var catalogs = [
                 },
                 "cmd": {
                     "deploy": {
-                        "command": [],
-                        "args": []
+                        "command": ["bash"],
+                        "args": ["-c","node index.js -T nodejs"]
                     }
                 }
             }
@@ -341,7 +349,7 @@ var catalogs = [
                 },
                 "container": {
                     "network": "", //container network for docker
-                    "workingDir": "" //container working directory
+                    "workingDir": "/opt/soajs/deployer/" //container working directory
                 },
                 "voluming": JSON.parse(JSON.stringify(defaultVoluming))
             },
@@ -442,8 +450,8 @@ var catalogs = [
                 },
                 "cmd": {
                     "deploy": {
-                        "command": ["bash", "-c"],
-                        "args": ["node index.js -T service"]
+                        "command": ["bash"],
+                        "args": ["-c", "node index.js -T service"]
                     }
                 }
             }
@@ -479,7 +487,7 @@ var catalogs = [
                 },
                 "container": {
                     "network": "", //container network for docker
-                    "workingDir": "" //container working directory
+                    "workingDir": "/opt/soajs/deployer/" //container working directory
                 },
                 "voluming": JSON.parse(JSON.stringify(defaultVoluming)),
                 "ports": [
@@ -540,8 +548,71 @@ var catalogs = [
                 },
                 "cmd": {
                     "deploy": {
-                        "command": ["bash", "-c"],
-                        "args": ["node index.js -T nginx"]
+                        "command": ["bash"],
+                        "args": ["-c", "node index.js -T nginx"]
+                    }
+                }
+            }
+        }
+    },
+    {
+        "name": "Java Recipe",
+        "type": "service",
+        "description": "This is a sample java catalog recipe",
+        "locked": true,
+        "recipe": {
+            "deployOptions": {
+                "image": {
+                    "prefix": "soajsorg",
+                    "name": "java",
+                    "tag": "latest",
+                    "pullPolicy": "IfNotPresent"
+                },
+                "specifyGitConfiguration": true,
+                "container": {
+                    "workingDir": "/opt/soajs/deployer/"
+                },
+                "voluming": {
+                    "volumes": [],
+                    "volumeMounts": []
+                }
+            },
+            "buildOptions": {
+                "env": {
+                    "SOAJS_GIT_OWNER": {
+                        "type": "computed",
+                        "value": "$SOAJS_GIT_OWNER"
+                    },
+                    "SOAJS_GIT_BRANCH": {
+                        "type": "computed",
+                        "value": "$SOAJS_GIT_BRANCH"
+                    },
+                    "SOAJS_GIT_COMMIT": {
+                        "type": "computed",
+                        "value": "$SOAJS_GIT_COMMIT"
+                    },
+                    "SOAJS_GIT_REPO": {
+                        "type": "computed",
+                        "value": "$SOAJS_GIT_REPO"
+                    },
+                    "SOAJS_GIT_TOKEN": {
+                        "type": "computed",
+                        "value": "$SOAJS_GIT_TOKEN"
+                    },
+                    "SOAJS_JAVA_APP_PORT": {
+                        "type": "computed",
+                        "value": "$SOAJS_SRV_PORT"
+                    }
+                },
+                "cmd": {
+                    "deploy": {
+                        "command": [
+                            "sh"
+                        ],
+                        "args": [
+                            "-c",
+                            "node index.js -T java"
+                        ]
                     }
                 }
             }

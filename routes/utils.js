@@ -802,7 +802,7 @@ module.exports = {
 
     "returnInstallProgress": function (body, cb) {
         if (body.deployment.deployType === 'manual') {
-            var repos = ["soajs.controller", "soajs.urac", "soajs.dashboard", "soajs.gcs", "soajs.oauth", "soajs.prx", "soajs"];
+            var repos = ["soajs.controller", "soajs.urac", "soajs.dashboard", "soajs.gcs", "soajs.oauth", "soajs"];
 
             /*
              1- check if all files in wrkDir exists
@@ -906,7 +906,7 @@ module.exports = {
              */
             if (body.deployment.deployDriver.indexOf("docker") !== -1) {
                 // docker
-                var services = ["dashboard-soajsdata", "dashboard_soajs_oauth", "dashboard_soajs_prx", "dashboard_soajs_urac", "dashboard_soajs_dashboard", "dashboard-controller", "dashboard_nginx"];
+                var services = ["dashboard-soajsdata", "dashboard_soajs_oauth", "dashboard_soajs_urac", "dashboard_soajs_dashboard", "dashboard-controller", "dashboard_nginx"];
 
                 if(body.deployment.deployAnalytics){
                 	var analyticsContaiers = ["kibana", "dashboard-filebeat", "soajs-analytics-elasticsearch", "soajs-metricbeat", "dashboard-logstash"];
@@ -973,7 +973,7 @@ module.exports = {
             }
             else {
                 // kubernetes
-                var services = ["dashboard-soajsdata", "dashboard-oauth-v1", "dashboard-proxy-v1", "dashboard-urac-v2", "dashboard-dashboard-v1", "dashboard-controller-v1", "dashboard-nginx"];
+                var services = ["dashboard-soajsdata", "dashboard-oauth-v1", "dashboard-urac-v2", "dashboard-dashboard-v1", "dashboard-controller-v1", "dashboard-nginx"];
 
 	            if(body.deployment.deployAnalytics){
 		            var analyticsContaiers = ["kibana", "dashboard-filebeat", "soajs-analytics-elasticsearch", "soajs-metricbeat", "dashboard-logstash"];
@@ -1064,13 +1064,13 @@ module.exports = {
             myMongo.find("hosts", {"env": "dashboard"}, function (error, hosts) {
                 if (error) {
                     return cb(error);
-                }
+                }sudo /opt/soajs/node_modules/soajs.installer/scripts/swarm-deploy.sh
 
                 var data = {
                     download: download.download
                 };
 
-                var list = ["controller", "urac", "dashboard", "proxy"];
+                var list = ["controller", "urac", "dashboard"];
                 if (ha) {
                     var replica = body.deployment.dockerReplica;
                     data.install = {
