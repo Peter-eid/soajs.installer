@@ -4,7 +4,7 @@ var src = {
 	owner: 'soajs',
 	repo: 'soajs.dashboard',
 	//branch: gConfig.git.branch
-	branch: "feature/AN-81"
+	branch: "feature/analytics"
 };
 
 var config = {

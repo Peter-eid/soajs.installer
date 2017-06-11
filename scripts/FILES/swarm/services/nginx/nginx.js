@@ -3,7 +3,7 @@ var gConfig = require("../../config.js");
 
 var dashUISrc = {
 	//branch: gConfig.dashUISrc.branch,
-	branch: "feature/AN-81"
+	branch: "feature/analytics"
 };
 
 var customUISrc = {
