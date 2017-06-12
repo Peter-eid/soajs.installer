@@ -312,8 +312,6 @@
                                 <option value="LoadBalancer">Load Balancer</option>
                             </select>
                             <div class="fieldMsg hint" ng-show="deployment.nginxDeployType==='LoadBalancer'">Load Balancer option uses automatic public IP / ELB provisioning when running Kubernetes cluster in AWS or GCE.</div>
-                            <div class="fieldMsg hint" ng-show="deployment.nginxDeployType==='NodePort'">NodePort exposes NGINX to the selected port number plus 30000.</div>
-                            <div class="fieldMsg hint" ng-show="deployment.nginxDeployType==='NodePort'">Current NGINX exposed port: {{30000 + deployment.nginxPort}}</div>
                         </div>
                     </td>
                 </tr>

@@ -321,7 +321,7 @@ module.exports = {
         tntData = tntData.replace(/%extKey1%/g, body.security.extKey1);
         tntData = tntData.replace(/%extKey2%/g, body.security.extKey2);
         fs.writeFile(folder + "tenants/owner.js", tntData, "utf8");
-	
+
         //update image
 	    var catalogs = fs.readFileSync(folder + "catalogs/index.js", "utf8");
 	    catalogs = catalogs.replace(/%imagePrefix%/g, body.deployment.imagePrefix);
@@ -764,7 +764,7 @@ module.exports = {
                         "api": body.deployment.containerHost + " " + body.gi.api + "." + body.gi.domain,
                         "site": body.deployment.containerHost + " " + body.gi.site + "." + body.gi.domain
                     },
-                    "ui": "http://" + body.gi.site + "." + body.gi.domain + ":" + (30000 + body.deployment.nginxPort),
+                    "ui": "http://" + body.gi.site + "." + body.gi.domain + ":" + body.deployment.nginxPort,
                     "cmd": "sudo " + path.normalize(__dirname + "/../scripts/" + type + "-deploy.sh")
                 };
             }

@@ -201,6 +201,10 @@ deploymentApp.controller('deploymentCtrl', ['$scope', 'ngDataApi', '$modal', '$t
 				$scope.deployment.containerDir = (response && response.kubernetes && response.kubernetes.containerDir) ? response.kubernetes.containerDir : "";
 				$scope.deployment.kubeContainerPort = (response && response.kubernetes && response.kubernetes.containerPort) ? response.kubernetes.containerPort : 8443;
 
+				//update nginx ports to fall within kubernetes nodeport range
+				if (!response.nginxPort) $scope.deployment.nginxPort += 30000;
+				if (!response.nginxSecurePort) $scope.deployment.nginxSecurePort += 30000;
+
 				//get certificate information
 				$scope.deployment.certificates = {};
 				//CA certificate
