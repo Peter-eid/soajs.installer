@@ -22,7 +22,7 @@ var mongo = new soajs.mongo(profile2);
 //var analyticsCollection = 'analytics';
 var utilLog = require('util');
 var dbConfiguration = require('../../../data/startup/environments/dashboard');
-var esClusterConfiguration = require('../../../data/startup/resources/es');
+//var esClusterConfiguration = require('../../../data/startup/resources/es');
 //var esClient;
 
 var lib = {
@@ -774,32 +774,31 @@ var lib = {
 					}
 				}
 			},
+			//check this
 			envRecord: dbConfiguration,
 			deployment: {
 				external: true,
 				deployer: deployer
-			}
+			},
+			mode: 'installer'
 		};
+		
 		mongo.findOne('analytics', {_type: 'settings'}, function (error, settings) {
 			if (error) {
 				return cb(error);
 			}
-			if (settings && settings.elasticsearch && dbConfiguration.dbs.databases[settings.elasticsearch.db_name]) {
-				var cluster = dbConfiguration.dbs.databases[settings.elasticsearch.db_name].cluster;
-				if (!process.env.SOAJS_INSTALL_DEBUG) {
-					dbConfiguration.dbs.clusters[cluster].extraParam.log = [{
-						type: 'stdio',
-						levels: [] // remove the logs
-					}];
-				}
-				opts.esClient = new soajs.es(dbConfiguration.dbs.clusters[cluster]);
-				opts.esCluster = dbConfiguration.dbs.clusters[cluster];
+			opts.envCode = 'dashboard';
+			opts.analyticsSettings = settings;
+			opts.es_dbName =  settings.elasticsearch.db_name;
+			if (settings && settings.elasticsearch && settings.elasticsearch.db_name) {
+				opts.es_dbName =  settings.elasticsearch.db_name;
 			}
 			else {
 				return cb(new Error("No Elastic db name found!"));
 			}
-			
-			analytics.activateAnalytics(opts, 'installer', cb);
+			console.log("opts: ", opts);
+			//return cb(error, true);
+			analytics.activateAnalytics(opts, cb);
 		});
 	},
 	

@@ -575,7 +575,7 @@ module.exports = {
                 }
                 //check this
 
-	            envs['SOAJS_DEPLOY_ANALYTICS'] = body.deployment.deployAnalytics ? true : false;
+	            envs['SOAJS_DEPLOY_ANALYTICS'] = !!body.deployment.deployAnalytics;
 	            // if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
 		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.ext || false;
 		         //    envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers); //do i need this?
@@ -690,7 +690,7 @@ module.exports = {
 		            envs["SOAJS_DOCKER_CERTS_PATH"] = body.deployment.docker.containerDir || body.deployment.docker.certificatesFolder + "/";
 	            }
 	            
-	            envs['SOAJS_DEPLOY_ANALYTICS'] = body.deployment.deployAnalytics ? true : false;
+	            envs['SOAJS_DEPLOY_ANALYTICS'] = !!body.deployment.deployAnalytics;
 				//check this
 	            // if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
 		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.external || false;

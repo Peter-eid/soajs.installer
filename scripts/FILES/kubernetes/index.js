@@ -532,8 +532,8 @@ var lib = {
 			function(callback) { initNamespace(callback); },
 			function(callback) { createServiceAccount(callback); },
 			function(callback) { createService(callback); },
-			function(callback) { createDeployment(callback); },
-			function(callback) { configureELK(callback); }
+			function(callback) { createDeployment(callback); }
+			//function(callback) { configureELK(callback); }
 		], cb);
 
 		function initNamespace(cb) {
@@ -607,22 +607,22 @@ var lib = {
             return deployer.extensions.namespaces(namespace)[deploytype].post({ body: options.deployment }, cb);
         }
 
-		function configureELK(cb) {
-			if (!config.analytics || config.analytics !== 'true') return cb(null, true);
-			if (options && options.deployment
-				&& options.deployment.metadata
-				&& options.deployment.metadata.name) {
-				if (options.deployment.metadata.name === "soajs-analytics-elasticsearch") {
-					return lib.configureElastic(deployer, options, cb);
-				}
-				else {
-					return lib.configureKibana(deployer, options, cb);
-				}
-			}
-			else {
-				return cb(null, true);
-			}
-		}
+		// function configureELK(cb) {
+		// 	if (!config.analytics || config.analytics !== 'true') return cb(null, true);
+		// 	if (options && options.deployment
+		// 		&& options.deployment.metadata
+		// 		&& options.deployment.metadata.name) {
+		// 		if (options.deployment.metadata.name === "soajs-analytics-elasticsearch") {
+		// 			return lib.configureElastic(deployer, options, cb);
+		// 		}
+		// 		else {
+		// 			return lib.configureKibana(deployer, options, cb);
+		// 		}
+		// 	}
+		// 	else {
+		// 		return cb(null, true);
+		// 	}
+		// }
     },
 
 	checkIfDeployed: function (deployer, options, cb) {
@@ -960,39 +960,25 @@ var lib = {
 			deployment: {
 				external: true,
 				deployer: deployer
-			}
+			},
+			mode: 'installer'
 		};
 		mongo.findOne('analytics', {_type: 'settings'}, function (error, settings) {
 			if (error) {
 				return cb(error);
 			}
-			if (settings && settings.elasticsearch && dbConfiguration.dbs.databases[settings.elasticsearch.db_name]) {
-				var cluster = dbConfiguration.dbs.databases[settings.elasticsearch.db_name].cluster;
-				if (!process.env.SOAJS_INSTALL_DEBUG) {
-					dbConfiguration.dbs.clusters[cluster].extraParam.log = [{
-						type: 'stdio',
-						levels: [] // remove the logs
-					}];
-				}
-				//change extertnal port
-				dbConfiguration.dbs.clusters[cluster].servers[0].port = 30920;
-				opts.esClient = new soajs.es(dbConfiguration.dbs.clusters[cluster]);
+			opts.envCode = 'dashboard';
+			opts.analyticsSettings = settings;
+			//todo peter add security here
+			if (settings && settings.elasticsearch && settings.elasticsearch.db_name) {
+				opts.es_dbName =  settings.elasticsearch.db_name;
 			}
 			else {
 				return cb(new Error("No Elastic db name found!"));
 			}
-			// console.log(opts.esClient)
-			// console.log("--------")
-			// function logAllProperties(obj) {
-			// 	if (obj == null) return; // recursive approach
-			// 	console.log(Object.getOwnPropertyNames(obj));
-			// 	logAllProperties(Object.getPrototypeOf(obj));
-			// }
-			// logAllProperties(opts.esClient)
-			analytics.activateAnalytics(opts, 'installer', cb);
+			analytics.activateAnalytics(opts, cb);
 		});
 	},
-	
 	// configureElastic: function (deployer, serviceOptions, cb) {
 	// 	mongo.findOne('analytics', {_type: 'settings'}, function (error, settings) {
 	// 		if (error) {
