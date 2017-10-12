@@ -18,14 +18,16 @@ var components = {
 				"soajs.env.code": "dashboard",
 
                 "soajs.service.name": "nginx",
-                "soajs.service.group": "nginx",
-				"soajs.service.type": "nginx",
+                "soajs.service.group": "soajs-nginx",
+				"soajs.service.type": "server",
+				"soajs.service.subtype": "nginx",
 				"soajs.service.label": "dashboard-nginx",
-				"soajs.service.mode": "deployment"
+				"soajs.service.mode": "daemonset"
 			}
 		},
 		"spec": {
 			"type": "NodePort",
+			"externalTrafficPolicy": "Local",
 			"selector": {
 				"soajs.service.label": "dashboard-nginx"
 			},
@@ -49,7 +51,7 @@ var components = {
 	},
 	deployment: {
 		"apiVersion": "extensions/v1beta1",
-		"kind": "Deployment",
+		"kind": "DaemonSet",
 		"metadata": {
 			"name": "dashboard-nginx",
 			"labels": {
@@ -57,10 +59,11 @@ var components = {
 				"soajs.env.code": "dashboard",
 
                 "soajs.service.name": "nginx",
-                "soajs.service.group": "nginx",
-				"soajs.service.type": "nginx",
+				"soajs.service.group": "soajs-nginx",
+				"soajs.service.type": "server",
+				"soajs.service.subtype": "nginx",
 				"soajs.service.label": "dashboard-nginx",
-				"soajs.service.mode": "deployment"
+				"soajs.service.mode": "daemonset"
 			}
 		},
 		"spec": {
@@ -78,17 +81,18 @@ var components = {
 						"soajs.env.code": "dashboard",
 
 		                "soajs.service.name": "nginx",
-		                "soajs.service.group": "nginx",
-						"soajs.service.type": "nginx",
+						"soajs.service.group": "soajs-nginx",
+						"soajs.service.type": "server",
+						"soajs.service.subtype": "nginx",
 						"soajs.service.label": "dashboard-nginx",
-						"soajs.service.mode": "deployment"
+						"soajs.service.mode": "daemonset"
 					}
 				},
 				"spec": {
 					"containers": [
 						{
 							"name": "dashboard-nginx",
-							"image": gConfig.imagePrefix + "/nginx",
+							"image": gConfig.images.nginx.prefix + "/nginx:" + gConfig.images.nginx.tag,
 							"imagePullPolicy": gConfig.imagePullPolicy,
 							"workingDir": "/opt/soajs/deployer/",
 							"command": ["node"],
@@ -120,9 +124,16 @@ var components = {
 									"value": "dashboard"
 								},
 								{
+									"name": "SOAJS_EXTKEY",
+									"value": gConfig.extKey1
+								},
+								{
 									"name": "SOAJS_GIT_DASHBOARD_BRANCH",
-									//"value": gConfig.git.branch
-									"value": "feature/analytics"
+									"value": gConfig.dashUISrc.branch
+								},
+								{
+									"name": "SOAJS_NX_DOMAIN",
+									"value": gConfig.masterDomain
 								},
 								{
 									"name": "SOAJS_NX_API_DOMAIN",
@@ -131,6 +142,10 @@ var components = {
 								{
 									"name": "SOAJS_NX_SITE_DOMAIN",
 									"value": gConfig.sitePrefix + "." + gConfig.masterDomain
+								},
+								{
+									"name": "SOAJS_NX_PORTAL_DOMAIN",
+									"value": gConfig.portalPrefix + "." + gConfig.masterDomain
 								},
 								{
 									"name": "SOAJS_NX_CONTROLLER_NB",

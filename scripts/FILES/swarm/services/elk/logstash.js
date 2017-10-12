@@ -10,7 +10,7 @@ var config = {
 	servNetwork: [{Target: gConfig.docker.network}],
 	
 	image: {
-		prefix: gConfig.imagePrefix,
+		prefix: 'soajsorg',
 		name: 'logstash'
 	},
 	env: [
@@ -19,9 +19,10 @@ var config = {
 	labels: {
 		"soajs.content": "true",
 		"soajs.env.code": "dashboard",
-		"soajs.service.type": "elk",
+		"soajs.service.type": "system",
+		"soajs.service.subtype": "logstash",
 		"soajs.service.name": "dashboard-logstash",
-		"soajs.service.group": "elk",
+		"soajs.service.group": "soajs-analytics",
 		"soajs.service.label": "dashboard-logstash",
 		"soajs.service.mode": "replicated"
 	},
@@ -44,11 +45,6 @@ module.exports = {
 			"Args": config.command.splice(1)
 		},
 		"Placement": {},
-		"Resources": {
-			"Limits": {
-				"MemoryBytes": 1000000000.0 //approx 1gb
-			}
-		},
 		"RestartPolicy": {
 			"Condition": "any",
 			"MaxAttempts": 5

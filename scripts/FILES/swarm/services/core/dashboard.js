@@ -15,10 +15,11 @@ var config = {
 			Target: gConfig.docker.network
 		}
 	],
-
+	
 	image: {
-		prefix: gConfig.imagePrefix,
-		name: 'soajs'
+		prefix: gConfig.images.soajs.prefix,
+		name: 'soajs',
+		tag: gConfig.images.soajs.tag
 	},
 	env: [
 		'NODE_ENV=production',
@@ -48,10 +49,12 @@ var config = {
 	],
 	labels: {
 		"service.branch": gConfig.git.branch,
+		"service.owner": "soajs",
 		"service.repo": "soajs.dashboard",
 		"soajs.content": "true",
 		"soajs.env.code": "dashboard",
 		"soajs.service.type": "service",
+		"soajs.service.subtype": "soajs",
 		"soajs.service.name": "dashboard",
 		"soajs.service.group": "soajs-core-services",
 		"soajs.service.version": "1",
@@ -71,17 +74,12 @@ module.exports = {
 	"Name": config.servName,
 	"TaskTemplate": {
 		"ContainerSpec": {
-			"Image": config.image.prefix + '/' + config.image.name,
+			"Image": config.image.prefix + '/' + config.image.name + ":" + config.image.tag,
 			"Env": config.env,
 			"Dir": config.workingDir,
 			"Command": [config.command[0]],
 			"Args": config.command.splice(1),
 			"Mounts": config.mounts
-		},
-		"Resources": {
-			"Limits": {
-				"MemoryBytes": 509715200.0
-			}
 		},
 		"RestartPolicy": {
 			"Condition": "any",

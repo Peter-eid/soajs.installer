@@ -33,8 +33,9 @@ var config = {
     ],
 
     image: {
-        prefix: gConfig.imagePrefix,
-        name: 'nginx'
+        prefix: gConfig.images.nginx.prefix,
+        name: 'nginx',
+        tag: gConfig.images.nginx.tag
     },
     env: [
         'SOAJS_ENV=dashboard',
@@ -42,10 +43,13 @@ var config = {
         'SOAJS_DEPLOY_HA=swarm',
         'SOAJS_HA_NAME={{.Task.Name}}',
 
+	    'SOAJS_EXTKEY=' + gConfig.extKey1,
+
         'SOAJS_GIT_DASHBOARD_BRANCH=' + dashUISrc.branch,
         'SOAJS_NX_DOMAIN=' + masterDomain,
         'SOAJS_NX_API_DOMAIN=' + gConfig.apiPrefix + '.' + masterDomain,
         'SOAJS_NX_SITE_DOMAIN=' + gConfig.sitePrefix + '.' + masterDomain,
+        'SOAJS_NX_PORTAL_DOMAIN=' + gConfig.portalPrefix + '.' + masterDomain,
 
         'SOAJS_NX_CONTROLLER_NB=1',
         'SOAJS_NX_CONTROLLER_IP_1=' + controllerServiceName,
@@ -62,11 +66,12 @@ var config = {
     labels: {
         "soajs.content": "true",
         "soajs.env.code": "dashboard",
-        "soajs.service.type": "nginx",
+        "soajs.service.type": "server",
+        "soajs.service.subtype": "nginx",
         "soajs.service.name": "nginx",
-        "soajs.service.group": "nginx",
+        "soajs.service.group": "soajs-nginx",
         "soajs.service.label": "dashboard_nginx",
-        "soajs.service.mode": "replicated"
+        "soajs.service.mode": "global"
     },
     workingDir: '/opt/soajs/deployer/',
     command: [
@@ -78,12 +83,14 @@ var config = {
         {
             "Protocol": "tcp",
             "PublishedPort": gConfig.nginx.port.http,
-            "TargetPort": 80
+            "TargetPort": 80,
+			"PublishMode": "host"
         },
         {
             "Protocol": "tcp",
             "PublishedPort": gConfig.nginx.port.https,
-            "TargetPort": 443
+            "TargetPort": 443,
+			"PublishMode": "host"
         }
     ]
 };
@@ -114,7 +121,7 @@ if (customUISrc.repo && customUISrc.owner) {
     if (customUISrc.token) {
         config.env.push('SOAJS_GIT_TOKEN=' + customUISrc.token);
     }
-	
+
 	if (customUISrc.path) {
 		config.env.push('SOAJS_GIT_PATH=' + customUISrc.path);
 	}
@@ -124,7 +131,7 @@ module.exports = {
     "Name": config.servName,
     "TaskTemplate": {
         "ContainerSpec": {
-            "Image": config.image.prefix + '/' + config.image.name,
+            "Image": config.image.prefix + '/' + config.image.name + ":" + config.image.tag,
             "Env": config.env,
             "Dir": config.workingDir,
             "Command": [config.command[0]],
@@ -132,20 +139,13 @@ module.exports = {
             "Mounts": config.mounts
         },
         "Placement": {},
-        "Resources": {
-            "Limits": {
-                "MemoryBytes": 509715200.0
-            }
-        },
         "RestartPolicy": {
             "Condition": "any",
             "MaxAttempts": 5
         }
     },
     "Mode": {
-        "Replicated": {
-            "Replicas": config.servReplica
-        }
+		"Global": {}
     },
     "UpdateConfig": {
         "Delay": 500.0,

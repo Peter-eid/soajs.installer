@@ -11,6 +11,10 @@ delete require.cache[process.env.SOAJS_PROFILE];
 const profile = require(process.env.SOAJS_PROFILE);
 
 profile.name = "core_provision";
+if(!process.env.MONGO_EXT || process.env.MONGO_EXT === 'false'){
+	profile.servers[0].port = parseInt(process.env.MONGO_PORT) || 27017;
+}
+
 var mongo = new soajs.mongo(profile);
 var fs= require("fs");
 
@@ -25,14 +29,16 @@ mongo.dropDatabase(function () {
 								throw new Error("Error while importing analytics \n" + errAnalytics);
 							}
 							lib.addCatalogs(function () {
-								mongo.closeDb();
-								profile.name = "DBTN_urac";
-								mongo = new soajs.mongo(profile);
-								mongo.dropDatabase(function () {
-									lib.addUsers(function () {
-										lib.addGroups(function () {
-											lib.uracIndex(function () {
-												mongo.closeDb();
+								lib.addCiRecipes(function () {
+									mongo.closeDb();
+									profile.name = "DBTN_urac";
+									mongo = new soajs.mongo(profile);
+									mongo.dropDatabase(function () {
+										lib.addUsers(function () {
+											lib.addGroups(function () {
+												lib.uracIndex(function () {
+													mongo.closeDb();
+												});
 											});
 										});
 									});
@@ -51,9 +57,26 @@ const lib = {
 	 Environments
 	 */
 	"addEnvs": function (cb) {
-		var record = require(dataFolder + "environments/dashboard.js");
-		record._id = mongo.ObjectId(record._id);
-		mongo.insert("environment", record, cb);
+		async.parallel({
+			"env": function(mCb){
+				var record = require(dataFolder + "environments/dashboard.js");
+				record._id = mongo.ObjectId(record._id);
+				mongo.insert("environment", record, mCb);
+			},
+			"mongo": function(mCb){
+				var record = require(dataFolder + "resources/mongo.js");
+				record._id = mongo.ObjectId(record._id);
+				mongo.insert("resources", record, mCb);
+			},
+			"es": function(mCb){
+				var record = require(dataFolder + "resources/es.js");
+				if(Object.keys(record).length === 0){
+					return mCb();
+				}
+				record._id = mongo.ObjectId(record._id);
+				mongo.insert("resources", record, mCb);
+			}
+		}, cb);
 	},
 
 	/*
@@ -127,8 +150,37 @@ const lib = {
 	 Catalogs
 	 */
 	"addCatalogs": function (cb) {
-		var records = require(dataFolder + "catalogs/index.js");
-		mongo.insert("catalogs", records, cb);
+		var options =
+			{
+				col: 'catalogs',
+				index: {name: 1},
+				options: {unique: true}
+			};
+		
+		mongo.createIndex(options.col, options.index, options.options, function (error) {
+			lib.errorLogger(error);
+			var records = require(dataFolder + "catalogs/index.js");
+			mongo.insert("catalogs", records, cb);
+		});
+		
+	},
+	
+	/*
+	 CI Recipes
+	 */
+	"addCiRecipes": function (cb) {
+		var options =
+			{
+				col: 'cicd',
+				index: {type: 1}
+			};
+		
+		mongo.createIndex(options.col, options.index, null, function (error) {
+			lib.errorLogger(error);
+			var records = require(dataFolder + "ci");
+			mongo.insert("cicd", records, cb);
+		});
+		
 	},
 	
 	/***************************************************************
@@ -243,7 +295,7 @@ const lib = {
 		];
 
 		async.each(indexes, function (oneIndex, callback) {
-			mongo.ensureIndex(oneIndex.col, oneIndex.index, oneIndex.options, function (error) {
+			mongo.createIndex(oneIndex.col, oneIndex.index, oneIndex.options, function (error) {
 				lib.errorLogger(error);
 				return callback();
 			});

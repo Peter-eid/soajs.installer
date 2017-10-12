@@ -4,6 +4,7 @@ module.exports = {
 		"domain": "soajs.org",
 		"api": "dashboard-api",
 		"site": "dashboard",
+		"portal": "portal",
 		"wrkDir": "/opt",
 		"email": "me@localhost.com",
 		"username": "owner",
@@ -59,8 +60,9 @@ module.exports = {
 		"gitToken": null,
 		
 		"imagePrefix": "soajsorg",
-		"nginxPort": 80,
-		"nginxSecurePort": 443,
+		"nginxPort": 30080,
+		"nginxSecurePort": 30443,
+		"mongoExposedPort": 32017,
 		"nginxSsl": null,
 		"dockerReplica": 1,
 		

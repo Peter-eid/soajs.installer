@@ -11,23 +11,28 @@ var soajs_account = {
 	"repos": [
 		{
 			"name": "soajs/soajs.controller",
+			"serviceName": "controller",
 			"type": "service"
 		},
 		{
 			"name": "soajs/soajs.dashboard",
+			"serviceName": "dashboard",
 			"type": "service"
 		},
 		{
 			"name": "soajs/soajs.urac",
+			"serviceName": "urac",
 			"type": "service"
 		},
 		{
 			"name": "soajs/soajs.oauth",
+			"serviceName": "oauth",
 			"type": "service"
 		},
 		{
 			"name": "soajs/soajs.gcs",
-			"type": "service"
+			"serviceName": "gcs",
+			"type": "component"
 		}
 	]
 };

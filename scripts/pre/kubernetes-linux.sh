@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#This script installs prerequisites that enable this machine to join a docker swarm
+#This script installs prerequisites that enable this machine to join a kubernetes cluster
 #Compatible with Ubuntu
 
 #Need to run as root in order to install Docker
@@ -25,14 +25,6 @@ function installOneTool(){
     else
         echo ${TOOL}" is installed, skipping installation ..."
     fi
-}
-
-function installMongo(){
-	echo "Installing MongoDB ..."
-	apt-get update && apt-get install -y mongodb
-	echo "MongoDB successfully installed..."
-	echo "Stopping MongoDB Service ..."
-    service mongodb stop
 }
 
 function installKubernetes(){
@@ -63,10 +55,6 @@ function installKubernetes(){
 
     echo "Kubernetes-cni successfully installed"
 
-    echo "Installing Flannel driver"
-    curl -o flannel.yml https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
-    echo "Flannel driver successfully installed"
-
 }
 
 function initKubernetes(){
@@ -74,13 +62,17 @@ function initKubernetes(){
 
     kubeadm reset
     systemctl start kubelet.service
-    kubeadm init --pod-network-cidr=10.244.0.0/16
-    kubectl taint nodes --all dedicated-
-    kubectl apply -f flannel.yml
+    kubeadm init --pod-network-cidr=10.244.0.0/16 --kubernetes-version=stable-1.7
+    kubectl taint nodes --all node-role.kubernetes.io/master:NoSchedule-
+    mkdir -p $HOME/.kube
+    cp -rf /etc/kubernetes/admin.conf $HOME/.kube/config
+    chown "${SUDO_USER}:${SUDO_USER}" $HOME/.kube/config
+    kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+    kubectl create clusterrolebinding permissive-binding --clusterrole=cluster-admin --user=admin --user=kubelet --group=system:serviceaccounts;
 }
 #Start here########
 installTools
-installMongo
 installKubernetes
 initKubernetes
 ###################

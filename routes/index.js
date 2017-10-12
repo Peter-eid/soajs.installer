@@ -3,6 +3,7 @@ var os = require("os");
 var path = require("path");
 
 var utils = require("./utils");
+let config = require("../config");
 
 //configuration file
 var dataDir = __dirname + "/../data/";
@@ -19,27 +20,27 @@ var routes = {
         if(platform === 'linux'){
             osName = 'linux';
             data.manual = {
-                "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/manual-linux.sh"),
+                "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/manual-linux.sh <%Your_Domain%>"),
                 "t": "sh"
             };
             data.docker = {
                 local: {
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/docker-linux.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/docker-linux.sh <%Your_Domain%>"),
                     "t": "sh"
                 },
                 remote:{
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/docker-linux.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/docker-linux.sh <%Your_Domain%>"),
                     "t": "sh"
                 }
             };
 
             data.kubernetes = {
                 local: {
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-linux.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-linux.sh <%Your_Domain%>"),
                     "l": "sh"
                 },
                 remote: {
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-linux.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-linux.sh <%Your_Domain%>"),
                     "l": "sh"
                 }
             };
@@ -47,7 +48,7 @@ var routes = {
         else if(platform === 'darwin'){
             osName = 'mac';
             data.manual = {
-                "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/manual-mac.sh"),
+                "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/manual-mac.sh <%Your_Domain%>"),
                 "t": "sh"
             };
 
@@ -57,18 +58,18 @@ var routes = {
                     "t": "link"
                 },
                 remote:{
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/docker-linux.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/docker-linux.sh <%Your_Domain%>"),
                     "t": "sh"
                 }
             };
 
             data.kubernetes = {
                 local: {
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-mac.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-mac.sh <%Your_Domain%>"),
                     "l": "sh"
                 },
                 remote: {
-                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-linux.sh"),
+                    "v": "sudo " + path.resolve(__dirname + "/../scripts/pre/kubernetes-linux.sh <%Your_Domain%>"),
                     "l": "sh"
                 }
             };
@@ -82,12 +83,15 @@ var routes = {
                     os : osName,
 	                deployAnalytics: customData.deployAnalytics ? customData.deployAnalytics : false
                 };
+	            data.remoteProvider= customData.remoteProvider;
             }
             else {
                 data.deployer = {
                     os : osName
                 };
             }
+            
+            
             return res.json(req.soajs.buildResponse(null, data));
             /*utils.loadProfile(function (profile) {
                 if(profile){
@@ -206,7 +210,9 @@ var routes = {
                 else
                     return res.json(req.soajs.buildResponse({code: 601, msg: "Invalid machine IP address: " + error + ". Provide the machine's external IP address."}));
             }
-            utils.updateCustomData(req, res, req.soajs.inputmaskData.clusters, "clusters");
+            utils.updateCustomData(req, res, req.soajs.inputmaskData.clusters, "clusters", function(){
+	            utils.updateCustomData(req, res, req.soajs.inputmaskData.deployment, "deployment");
+            });
         });
     },
 	"postEsClusters": function (req, res) {
@@ -222,7 +228,12 @@ var routes = {
 	},
     "getDeployment": function (req, res) {
         utils.loadCustomData('deployment', function (customData) {
-            return res.json(req.soajs.buildResponse(null, customData || null));
+	        utils.loadCustomData('clusters', function (customData2) {
+	        	if(customData && customData2){
+	                customData.mongoExt = customData2.mongoExt;
+		        }
+                return res.json(req.soajs.buildResponse(null, customData || null));
+	        });
         });
     },
     "postDeployment": function (req, res) {
@@ -267,6 +278,19 @@ var routes = {
             });
         });
     },
+	
+	"reconfirmDeployment": function(req, res){
+		utils.loadCustomData(null, function(data){
+			if(data.security){
+				delete data.security.extKey1;
+				delete data.security.extKey2;
+			}
+			if(data.gi){
+				data.gi.password = "******";
+			}
+			return res.json(req.soajs.buildResponse(null, data));
+		});
+	},
 
     "installSOAJS": function (req, res) {
         var folder = dataDir + "startup/";
@@ -284,12 +308,12 @@ var routes = {
             utils.loadCustomData(null, function (body) {
 
                 body = utils.unifyData(defaultData, body);
-	            
+
                 utils.updateCustomData(req, res, body.gi, "gi", function(){
-	
+
 	                //fill the files with the user values
 	                utils.fillFiles(folder, body);
-	
+
 	                //launch deployer script
 	                switch(body.deployment.deployDriver){
 		                case 'manual':
@@ -308,7 +332,7 @@ var routes = {
 				                return res.json(req.soajs.buildResponse(null, data));
 			                });
 			                break;
-		
+
 		                case 'container.docker.remote':
 			                utils.deployContainer(body, 'docker', 'remote', function (error, data) {
 				                if (error) {
@@ -317,7 +341,7 @@ var routes = {
 				                return res.json(req.soajs.buildResponse(null, data));
 			                });
 			                break;
-		
+
 		                case 'container.kubernetes.local':
 			                utils.deployContainer(body, 'kubernetes', 'local', function (error, data) {
 				                if (error) {
@@ -326,7 +350,7 @@ var routes = {
 				                return res.json(req.soajs.buildResponse(null, data));
 			                });
 			                break;
-		
+
 		                case 'container.kubernetes.remote':
 			                utils.deployContainer(body, 'kubernetes', 'remote', function (error, data) {
 				                if (error) {
@@ -358,7 +382,7 @@ var routes = {
                     type = 'kubernetes';
                     break;
             }
-	        
+
             utils.regenerateInfo(type, customData, function(error, response){
                 if(error){
                     return res.json(req.soajs.buildResponse({"code": 500, "msg": error.message }));
@@ -379,7 +403,16 @@ var routes = {
             });
         });
 
-    }
+    },
+	
+	"versions": function(req, res){
+		utils.versions(config, req, function(error, response){
+			if(error){
+				return res.json(req.soajs.buildResponse({"code": 500, "msg": error.message }));
+			}
+			return res.json(req.soajs.buildResponse(null, response));
+		})
+	}
 };
 
 module.exports = routes;

@@ -5,7 +5,7 @@ var config = {
     servReplica: 1,
     servNetwork: [{Target: gConfig.docker.network}],
     image: {
-	    prefix: gConfig.imagePrefix,
+	    prefix: 'soajsorg',
         name: 'kibana'
     },
     env: [
@@ -14,8 +14,9 @@ var config = {
     labels: {
 	    "soajs.content": "true",
 	    "soajs.service.name": "kibana",
-	    "soajs.service.group": "elk",
-	    "soajs.service.type": "elk",
+	    "soajs.service.group": "soajs-analytics",
+	    "soajs.service.type": "system",
+	    "soajs.service.subtype": "kibana",
 	    "soajs.service.label": "kibana",
 	    "soajs.service.mode": "replicated"
     },
@@ -36,11 +37,6 @@ module.exports = {
             "Env": config.env
         },
         "Placement": {},
-        "Resources": {
-            "Limits": {
-                "MemoryBytes": 1000000000.0
-            }
-        },
         "RestartPolicy": {
             "Condition": "any",
             "MaxAttempts": 5
