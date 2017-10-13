@@ -9,6 +9,13 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 	$scope.local = true;
 	$scope.external = false;
 	
+	$scope.es_local = true;
+	$scope.es_external = false;
+	
+	$scope.es_security = {};
+	
+	$scope.isLocalEsSecured = false;
+	
 	$scope.closeAlert = function (i) {
 		$scope.alerts.splice(i, 1);
 	};
@@ -22,7 +29,7 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 	};
 
 	$scope.AddNewServer = function () {
-		$scope.clusters.servers.push({"host": "", "port": ""})
+		$scope.clusters.servers.push({"host": "", "port": ""});
 		
 		$timeout(function(){
 			resizeContent();
@@ -88,17 +95,46 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 			}
 			$scope.uncheckReplica();
 			resizeContent();
-			
-			console.log($scope.accordion);
 		}, 10);
 	}
 	
-	$scope.doESExt = function(optValue){
+	$scope.doESExt = function (optValue) {
 		$scope.analytics = true;
-		$timeout(function(){
+		$timeout(function () {
 			$scope.analytics = true;
+			if (optValue !== undefined) {
+				$scope.es_clusters.es_Ext = optValue;
+			}
+			else {
+				$scope.es_clusters.es_Ext = !$scope.es_clusters.es_Ext;
+			}
+			renderEsAccordion();
 		}, 100);
 	};
+	
+	function renderEsAccordion(){
+
+		if($scope.es_clusters.es_Ext){
+			$scope.es_external = true;
+			$scope.es_local = false;
+		}
+		else{
+			$scope.es_external = false;
+			$scope.es_local = true;
+		}
+		$timeout(function(){
+			if($scope.es_clusters.es_Ext){
+				$scope.es_external = true;
+				$scope.es_local = false;
+			}
+			else{
+				$scope.es_external = false;
+				$scope.es_local = true;
+			}
+			$scope.uncheckEsReplica();
+			resizeContent();
+		}, 10);
+	}
 	
 	$scope.uncheckReplica = function() {
 		if(!$scope.clusters.mongoExt) {
@@ -119,11 +155,33 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 			resizeContent();
 		}, 100);
 	};
+	
+	$scope.uncheckEsReplica = function() {
+		if(!$scope.es_clusters.es_Ext) {
+			$scope.es_clusters.isReplica = false;
+			$scope.resetEsInput();
+		}
+		$timeout(function(){
+			resizeContent();
+		}, 100);
+	};
+	
+	$scope.resetEsInput = function() {
+		if(!$scope.es_clusters.isReplica) {
+			$scope.es_clusters.isReplica = "";
+			$scope.es_clusters.servers = [$scope.es_clusters.servers[0]];
+		}
+		$timeout(function(){
+			resizeContent();
+		}, 100);
+	};
 
 	$scope.fillClusters = function () {
 		var data = angular.copy($scope.clusters);
-		var es_data = angular.copy($scope.es_clusters);
-		
+		var es_data = angular.copy($scope.local_es_cluster);
+		if ($scope.es_clusters && $scope.es_clusters.es_Ext) {
+			es_data = angular.copy($scope.es_clusters);
+		}
 		try {
 			data.URLParam = JSON.parse(data.URLParam);
 		}
@@ -154,6 +212,7 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 				alert("ElasticSearch Extra Parameters should be a JSON object!");
 				return false;
 			}
+			delete es_data.isReplica;
 			
 		}
 		var es_options = {
@@ -163,6 +222,30 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 				"es_clusters": es_data
 			}
 		};
+		if ($scope.es_security && Object.keys($scope.es_security).length > 0 &&  !es_data.es_Ext) {
+			if ($scope.es_security.rw && $scope.es_security.rw.username && $scope.es_security.rw.password) {
+				es_options.data.es_clusters.credentials.username = $scope.es_security.rw.username;
+				es_options.data.es_clusters.credentials.password = $scope.es_security.rw.password;
+				if ($scope.es_security.ro && $scope.es_security.ro.username) {
+					if ($scope.es_security.ro.username === $scope.es_security.rw.username) {
+						return alert("Duplicate username detected in ElasticSearch Security, Please use unique Username for each user");
+					}
+					if ($scope.es_security.owner && $scope.es_security.owner.username) {
+						if ($scope.es_security.owner.username === $scope.es_security.ro.username) {
+							return alert("Duplicate username detected in ElasticSearch Security, Please use unique Username for each user");
+						}
+					}
+				}
+				if ($scope.es_security.owner && $scope.es_security.owner.username) {
+					if ($scope.es_security.owner.username === $scope.es_security.rw.username) {
+						return alert("Duplicate username detected in ElasticSearch Security, Please use unique Username for each user");
+					}
+				}
+				es_options.data.es_security = $scope.es_security;
+			}else {
+				return alert("You should provide at least the Analytics Read + Write user");
+			}
+		}
 		
 		var options = {
 			url: appConfig.url + "/installer/clusters",
@@ -208,12 +291,12 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 			$scope.deployment.mongoExposedPort = (response && response.deployment.mongoExposedPort) ? response.deployment.mongoExposedPort : 32017;
 
 			$scope.containerDeployment = $scope.deployment.deployType === "container";
-
+			
 			$scope.clusters = {
 				"prefix": (response && response.clusters && response.clusters.prefix) ? response.clusters.prefix : "",
                 "mongoExt": (response && response.clusters && response.clusters.mongoExt) ? response.clusters.mongoExt : false,
                 "servers": (response && response.clusters && response.clusters.servers) ? response.clusters.servers : [{"host": "127.0.0.1", "port": 27017}],
-                "isReplica": (response && response.clusters && response.clusters.replicaSet) ? true : false,
+                "isReplica": (response && response.clusters && response.clusters.replicaSet),
 				"replicaSet": (response && response.clusters && response.clusters.replicaSet) ? response.clusters.replicaSet : "",
 				"credentials": (response && response.clusters && response.clusters.credentials) ? response.clusters.credentials : {
 					"username": "",
@@ -226,6 +309,28 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 				"streaming": (response && response.clusters && response.clusters.streaming) ? JSON.stringify(response.clusters.streaming, null, 2) : JSON.stringify({})
 			};
 			if ($scope.deployAnalytics) {
+				 $scope.local_es_cluster = {
+					"es_Ext": false,
+					"servers": [{
+						"host": "127.0.0.1",
+						"port": 9200
+					}],
+					"credentials": {
+						"username": "",
+						"password": ""
+					},
+					"URLParam": JSON.stringify({
+						"protocol": "http"
+					}, null, 2),
+					"extraParam":  JSON.stringify({
+						"requestTimeout": 30000,
+						"keepAlive": true,
+						"maxSockets": 30,
+						"number_of_shards": 5,
+						"number_of_replicas": 1,
+						"apiVersion": "5.x"
+					}, null, 2)
+				};
 				$scope.es_clusters = {
 					"es_Ext": (response && response.es_clusters && response.es_clusters.es_Ext) ? response.es_clusters.es_Ext : false,
 					"servers": (response && response.es_clusters && response.es_clusters.servers) ? response.es_clusters.servers : [{
@@ -248,6 +353,13 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 						"apiVersion": "5.x"
 					}, null, 2)
 				};
+				if(response.es_security && !$scope.es_clusters.es_Ext){
+					$scope.isLocalEsSecured = true;
+				}
+				if($scope.es_clusters.es_Ext){
+					$scope.es_local = false;
+					$scope.es_external = true;
+				}
 				$scope.analytics = true;
 			}
 			else {

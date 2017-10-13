@@ -241,7 +241,7 @@ deploymentApp.controller('deploymentCtrl', ['$scope', 'ngDataApi', '$modal', '$t
 				
 				"dockerReplica": (response && response.dockerReplica) ? response.dockerReplica : 1
 			};
-			$scope.deployment.mongoExt = response.mongoExt;
+			$scope.deployment.mongoExt = (response.mongoExt);
 			if (!response.mongoExt) {
 				$scope.deployment.mongoExposedPort = (response && response.mongoExposedPort) ? response.mongoExposedPort : 32017;
 			}

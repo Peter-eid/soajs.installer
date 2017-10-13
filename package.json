@@ -34,6 +34,7 @@
     "npm": "*",
     "request": "2.81.0",
     "rimraf": "*",
+    "sha256": "^0.2.0",
     "soajs": "1.0.*",
     "util": "*",
     "whereis": "*"

@@ -137,8 +137,13 @@ module.exports = {
 
 	    //add elastic cluster if available
 	    var es_clusters;
+	    var es_security;
 	    if (body.es_clusters) {
 		    es_clusters = JSON.parse(JSON.stringify(body.es_clusters));
+		    //add elastic security if available
+		    if(!es_clusters.es_Ext && body.es_security && Object.keys(body.es_security).length > 0){
+			    es_security = JSON.stringify(body.es_security, null ,2);
+		    }
 	    }
 
 
@@ -219,10 +224,10 @@ module.exports = {
 				    ];
 			    }
 		    }
+		    delete es_clusters.es_Ext;
 	    }
         delete clusters.replicaSet;
         delete clusters.mongoExt;
-	    delete clusters.es_Ext;
         profileData += 'module.exports = ' + JSON.stringify(clusters, null, 2) + ';';
         fs.writeFileSync(folder + "profile.js", profileData, "utf8");
 
@@ -285,12 +290,18 @@ module.exports = {
 			    "cluster": "es_analytics_cluster_" + uid,
 			    "tenantSpecific": false
 		    }, null, 2));
-		    settings = settings.replace(/"%db_name%"/g, JSON.stringify("es_analytics_db_" + uid), null ,2);
+		    settings = settings.replace(/%db_name%/g, "es_analytics_db_" + uid);
+		    if(es_security){
+			    settings = settings.replace(/"%es_security%"/g, es_security);
+		    }else{
+			    settings = settings.replace(/"security": "%es_security%",/g, '');
+		    }
 	    }
 	    else {
 		    esCluster = "'use strict';" + os.EOL + os.EOL + "module.exports =" + JSON.stringify({}) + ";";
 		    envData = envData.replace(/"%es_database_name%": "%databases_value%",/g, '');
 		    settings = settings.replace(/"db_name": "%db_name%"/g, '');
+		    settings = settings.replace(/"security": "%es_security%",/g, '');
 	    }
 	    fs.writeFile(folder + "resources/es.js", esCluster, "utf8");
 	    fs.writeFile(folder + "analytics/settings.js", settings, "utf8");
@@ -366,6 +377,14 @@ module.exports = {
 				    def.es_clusters = {};
 			    }
 			    def.es_clusters[j] = over.es_clusters[j];
+		    }
+	    }
+	    if (over.es_security) {
+		    for (var j in over.es_security) {
+			    if (!def.es_security) {
+				    def.es_security = {};
+			    }
+			    def.es_security[j] = over.es_security[j];
 		    }
 	    }
         return def;

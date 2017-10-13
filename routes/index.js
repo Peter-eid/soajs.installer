@@ -1,6 +1,7 @@
 "use strict";
 var os = require("os");
 var path = require("path");
+var SHA256 = require("sha256");
 
 var utils = require("./utils");
 let config = require("../config");
@@ -223,7 +224,20 @@ var routes = {
 				else
 					return res.json(req.soajs.buildResponse({code: 601, msg: "Invalid machine IP address: " + error + ". Provide the machine's external IP address."}));
 			}
-			utils.updateCustomData(req, res, req.soajs.inputmaskData.es_clusters, "es_clusters");
+			utils.updateCustomData(req, res, req.soajs.inputmaskData.es_clusters, "es_clusters", function () {
+				if (req.soajs.inputmaskData.es_security) {
+					var es_security = {};
+					var users = Object.keys(req.soajs.inputmaskData.es_security);
+					users.forEach(function (oneUser) {
+						if(req.soajs.inputmaskData.es_security[oneUser].username && req.soajs.inputmaskData.es_security[oneUser].password){
+							es_security[oneUser] = SHA256(req.soajs.inputmaskData.es_security[oneUser].username + ":" + req.soajs.inputmaskData.es_security[oneUser].password)
+						}
+					});
+					utils.updateCustomData(req, res, es_security, "es_security");
+				} else {
+					return res.json(req.soajs.buildResponse(null, true));
+				}
+			});
 		});
 	},
     "getDeployment": function (req, res) {

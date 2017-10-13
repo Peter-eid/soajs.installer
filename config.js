@@ -216,14 +216,14 @@ module.exports = {
 					}
 				}
 			},
-			'/installer/esClusters' :{
-				"_apiInfo":{
+			'/installer/esClusters': {
+				"_apiInfo": {
 					"l": "Override ElasticSeaach Clusters Information"
 				},
 				"es_clusters": {
 					"source": ["body.es_clusters"],
 					"required": false,
-					"validation":{
+					"validation": {
 						"type": "object",
 						"properties": {
 							"es_Ext": {"type": "boolean", "required": false},
@@ -247,6 +247,43 @@ module.exports = {
 							},
 							"URLParam": {"type": "object", "properties": {}},
 							"extraParam": {"type": "object", "properties": {}}
+						},
+						"additionalProperties": false
+					}
+				},
+				"es_security": {
+					"source": ["body.es_security"],
+					"required": false,
+					"validation": {
+						"type": "object",
+						"properties": {
+							"rw": {
+								"type": "object",
+								"required": true,
+								"properties": {
+									"username": {"type":"string", "required": true},
+									"password": {"type":"string", "required": true}
+								},
+								"additionalProperties": false
+							},
+							"ro": {
+								"type": "object",
+								"required": false,
+								"properties": {
+									"username": {"type":"string", "required": true},
+									"password": {"type":"string", "required": true}
+								},
+								"additionalProperties": false
+							},
+							"owner": {
+								"type": "object",
+								"required": false,
+								"properties": {
+									"username": {"type":"string", "required": true},
+									"password": {"type":"string", "required": true}
+								},
+								"additionalProperties": false
+							}
 						},
 						"additionalProperties": false
 					}
