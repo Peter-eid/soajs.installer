@@ -226,21 +226,6 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 			if ($scope.es_security.rw && $scope.es_security.rw.username && $scope.es_security.rw.password) {
 				es_options.data.es_clusters.credentials.username = $scope.es_security.rw.username;
 				es_options.data.es_clusters.credentials.password = $scope.es_security.rw.password;
-				if ($scope.es_security.ro && $scope.es_security.ro.username) {
-					if ($scope.es_security.ro.username === $scope.es_security.rw.username) {
-						return alert("Duplicate username detected in ElasticSearch Security, Please use unique Username for each user");
-					}
-					if ($scope.es_security.owner && $scope.es_security.owner.username) {
-						if ($scope.es_security.owner.username === $scope.es_security.ro.username) {
-							return alert("Duplicate username detected in ElasticSearch Security, Please use unique Username for each user");
-						}
-					}
-				}
-				if ($scope.es_security.owner && $scope.es_security.owner.username) {
-					if ($scope.es_security.owner.username === $scope.es_security.rw.username) {
-						return alert("Duplicate username detected in ElasticSearch Security, Please use unique Username for each user");
-					}
-				}
 				es_options.data.es_security = $scope.es_security;
 			}else {
 				return alert("You should provide at least the Analytics Read + Write user");

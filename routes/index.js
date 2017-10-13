@@ -228,6 +228,14 @@ var routes = {
 				if (req.soajs.inputmaskData.es_security) {
 					var es_security = {};
 					var users = Object.keys(req.soajs.inputmaskData.es_security);
+					
+					for (var i = 0; i < users.length - 1; i++) {
+						for (var j = i + 1; j < users.length; j++) {
+							if (req.soajs.inputmaskData.es_security[users[i]].username === req.soajs.inputmaskData.es_security[users[j]].username) {
+								return res.json(req.soajs.buildResponse({code: 602, msg: "Duplicate username detected in ElasticSearch Security, Please use unique Username for each user."}));
+							}
+						}
+					}
 					users.forEach(function (oneUser) {
 						if(req.soajs.inputmaskData.es_security[oneUser].username && req.soajs.inputmaskData.es_security[oneUser].password){
 							es_security[oneUser] = SHA256(req.soajs.inputmaskData.es_security[oneUser].username + ":" + req.soajs.inputmaskData.es_security[oneUser].password)
