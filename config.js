@@ -226,7 +226,7 @@ module.exports = {
 					"validation": {
 						"type": "object",
 						"properties": {
-							"external": {"type": "boolean", "required": false},
+							"es_Ext": {"type": "boolean", "required": false},
 							"servers": {
 								"type": "array",
 								"required": false,
