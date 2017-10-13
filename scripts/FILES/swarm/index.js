@@ -19,11 +19,9 @@ if(!process.env.MONGO_EXT || process.env.MONGO_EXT === 'false'){
 }
 var analytics = require('soajs.analytics');
 var mongo = new soajs.mongo(profile2);
-//var analyticsCollection = 'analytics';
 var utilLog = require('util');
 var dbConfiguration = require('../../../data/startup/environments/dashboard');
-//var esClusterConfiguration = require('../../../data/startup/resources/es');
-//var esClient;
+var esClusterConfiguration = require('../../../data/startup/resources/es');
 
 var lib = {
 
@@ -767,15 +765,20 @@ var lib = {
 			soajs: {
 				registry: {
 					coreDB: {
-						provision: profile
+						provision: profile2
 					},
 					serviceConfig: {
 						ports: dbConfiguration.services.config.ports
-					}
+					},
+					resources: {
+						cluster : {}
+					},
+					name: "dashboard",
+					environment: "dashboard",
+					deployer: dbConfiguration.deployer,
 				}
 			},
 			//check this
-			envRecord: dbConfiguration,
 			deployment: {
 				external: true,
 				deployer: deployer
@@ -789,14 +792,12 @@ var lib = {
 			}
 			opts.envCode = 'dashboard';
 			opts.analyticsSettings = settings;
-			opts.es_dbName =  settings.elasticsearch.db_name;
 			if (settings && settings.elasticsearch && settings.elasticsearch.db_name) {
-				opts.es_dbName =  settings.elasticsearch.db_name;
+				opts.soajs.registry.resources.cluster[settings.elasticsearch.db_name] = esClusterConfiguration;
 			}
 			else {
 				return cb(new Error("No Elastic db name found!"));
 			}
-			console.log("opts: ", opts);
 			//return cb(error, true);
 			analytics.activateAnalytics(opts, cb);
 		});
