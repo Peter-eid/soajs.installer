@@ -83,12 +83,12 @@ var lib= {
 		},
 		"volumes": {
 			"log": {
-				"label": "soajs_log_volume",
+				"label": "soajs-log-volume",
 				"path": "/var/log/soajs/"
 			}
 		}
 	},
-	"deployGroups": ['db', 'elk', 'core', 'nginx'],
+	"deployGroups": ['db', 'core', 'nginx'],
 	"services":{
 		"path": {
 			"dir": __dirname + '/services/',

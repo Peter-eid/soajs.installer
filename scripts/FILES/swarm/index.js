@@ -17,17 +17,15 @@ var profile2 = JSON.parse(JSON.stringify(profile));
 if(!process.env.MONGO_EXT || process.env.MONGO_EXT === 'false'){
 	profile2.servers[0].port = parseInt(process.env.MONGO_PORT) || 27017;
 }
-
+var analytics = require('soajs.analytics');
 var mongo = new soajs.mongo(profile2);
-var analyticsCollection = 'analytics';
 var utilLog = require('util');
 var dbConfiguration = require('../../../data/startup/environments/dashboard');
 var esClusterConfiguration = require('../../../data/startup/resources/es');
-var esClient;
 
 var lib = {
 
-    "loadCustomData": function (cb) {
+    loadCustomData: function (cb) {
         var dataDir = process.env.SOAJS_DATA_FOLDER;
 
         fs.exists(path.normalize(dataDir + "/../custom.js"), function (exists) {
@@ -136,9 +134,9 @@ var lib = {
             utilLog.log('External Mongo deployment detected, data containers will not be deployed ...');
             return cb(null, true);
         }
-	    if (type === 'elk' && (!config.analytics || config.analytics === "false")) {
-		    return cb(null, true);
-	    }
+	    // if (type === 'elk' && (!config.analytics || config.analytics === "false")) {
+		 //    return cb(null, true);
+	    // }
         async.eachSeries(services, function (oneService, callback) {
             if(type === "core"){
                 oneService.Labels["soajs.catalog.id"] = process.env.DASH_SRV_ID;
@@ -353,6 +351,19 @@ var lib = {
 
         return serviceRecipe;
     },
+	
+	/**
+	 * Customizes a new service recipe used to deploy the Elk services of the dashboard environment
+	 * @returns {*}
+	 */
+	updateElkeRecipes (allRecipes) {
+		for (var y = allRecipes.length - 1; y >= 0; y--) {
+			if (allRecipes[y].type === 'elk' || allRecipes[y].type === 'es') {
+				allRecipes.splice(y, 1);
+			}
+		}
+		return allRecipes;
+	},
 
     importData: function (mongoInfo, cb) {
         utilLog.log('Importing provision data to:', profile2.servers[0].host + ":" + profile2.servers[0].port);
@@ -374,6 +385,7 @@ var lib = {
                     //update the catalog recipes to include data used for dashboard environment deployment
                     dashboardCatalogEntries[0] = lib.updateServiceRecipe(dashboardCatalogEntries[0]);
                     dashboardCatalogEntries[1] = lib.updateNginxRecipe(dashboardCatalogEntries[1]);
+                    dashboardCatalogEntries = lib.updateElkeRecipes(catalogDefaulEntries);
                     //add catalogs to the database
                     mongo.insert("catalogs", dashboardCatalogEntries, true, (error, catalogEntries) => {
                         if(error){
@@ -529,17 +541,17 @@ var lib = {
 		deployer.createService(options, function (error) {
 			if(error) throw new Error(error);
 			//check if service name elasticsearch to configure it
-			if (config.analytics === "true") {
-				if (options.Name === 'soajs-analytics-elasticsearch') {
-					lib.configureElastic(deployer, options, cb);
-				}
-				else {
-					lib.configureKibana(deployer, options, cb);
-				}
-			}
-			else {
+			// if (config.analytics === "true") {
+			// 	if (options.Name === 'soajs-analytics-elasticsearch') {
+			// 		lib.configureElastic(deployer, options, cb);
+			// 	}
+			// 	else {
+			// 		lib.configureKibana(deployer, options, cb);
+			// 	}
+			// }
+			// else {
 				return cb(null, true);
-			}
+			//}
 		});
 	},
 
@@ -746,562 +758,599 @@ var lib = {
             }
         });
     },
-
-
-	configureElastic: function (deployer, serviceOptions, cb) {
+	
+	deployAnalytics: function(deployer, cb){
+    	//following behavior of registry
+		var opts = {
+			soajs: {
+				registry: {
+					coreDB: {
+						provision: profile2
+					},
+					serviceConfig: {
+						ports: dbConfiguration.services.config.ports
+					},
+					resources: {
+						cluster : {}
+					},
+					name: "dashboard",
+					environment: "dashboard",
+					deployer: dbConfiguration.deployer,
+				}
+			},
+			//check this
+			deployment: {
+				external: true,
+				deployer: deployer
+			},
+			mode: 'installer'
+		};
+		
 		mongo.findOne('analytics', {_type: 'settings'}, function (error, settings) {
 			if (error) {
 				return cb(error);
 			}
-			if (settings && settings.elasticsearch && dbConfiguration.dbs.databases[settings.elasticsearch.db_name]) {
-				var cluster = esClusterConfiguration.config;
-				if (!process.env.SOAJS_INSTALL_DEBUG){
-					cluster.extraParam.log = [{
-						type: 'stdio',
-						levels: [] // remove the logs
-					}];
-				}
-				esClient = new soajs.es(cluster);
-
+			opts.envCode = 'dashboard';
+			opts.analyticsSettings = settings;
+			if (settings && settings.elasticsearch && settings.elasticsearch.db_name) {
+				opts.soajs.registry.resources.cluster[settings.elasticsearch.db_name] = esClusterConfiguration;
 			}
 			else {
 				return cb(new Error("No Elastic db name found!"));
 			}
-			lib.getServiceNames(serviceOptions.Name, deployer, serviceOptions.Mode.Replicated.Replicas, function (error) {
-				if (error) return cb(error);
-				pingElastic(function (err, esResponse) {
-					utilLog.log('Configuring elasticsearch ...');
-					async.series({
-						"mapping": function (callback) {
-							putMapping(callback);
-						},
-						"template": function (callback) {
-							putTemplate(callback);
-						},
-						"settings": function (callback) {
-							putSettings(esResponse, settings, callback);
-						}
-					}, cb);
-				});
-			});
-		});
-
-		function pingElastic(cb) {
-			esClient.ping(function (error) {
-				if (error) {
-					lib.printProgress('Waiting for ' + serviceOptions.Name + ' server to become connected');
-					setTimeout(function () {
-						pingElastic(cb);
-					}, 2000);
-				}
-				else {
-					//delete all indexes
-					infoElastic(function (err, response) {
-						if (error) {
-							cb(err);
-						}
-						else {
-							var params = {
-								index: '_all'
-							};
-							esClient.db.indices.delete(params, function (err) {
-								return cb(err, response);
-							});
-						}
-					});
-				}
-			});
-		}
-
-		function infoElastic(cb) {
-			esClient.db.info(function (error, response) {
-				if (error) {
-					lib.printProgress('Waiting for ' + serviceOptions.Name + ' server to become available');
-					setTimeout(function () {
-						infoElastic(cb);
-					}, 3000);
-				}
-				else {
-					return cb(null, response);
-				}
-			});
-		}
-
-		function putTemplate(cb) {
-			mongo.find('analytics', {_type: 'template'}, function (error, templates) {
-				if (error) return cb(error);
-				async.each(templates, function (oneTemplate, callback) {
-					if (oneTemplate._json.dynamic_templates && oneTemplate._json.dynamic_templates["system-process-cgroup-cpuacct-percpu"]) {
-						oneTemplate._json.dynamic_templates["system.process.cgroup.cpuacct.percpu"] = oneTemplate._json.dynamic_templates["system-process-cgroup-cpuacct-percpu"];
-						delete oneTemplate._json.dynamic_templates["system-process-cgroup-cpuacct-percpu"];
-					}
-					oneTemplate._json.settings["index.mapping.total_fields.limit"] = oneTemplate._json.settings["index-mapping-total_fields-limit"];
-					oneTemplate._json.settings["index.refresh_interval"] = oneTemplate._json.settings["index-refresh_interval"];
-					delete oneTemplate._json.settings["index-refresh_interval"];
-					delete oneTemplate._json.settings["index-mapping-total_fields-limit"];
-					var options = {
-						'name': oneTemplate._name,
-						'body': oneTemplate._json
-					};
-					esClient.db.indices.putTemplate(options, function (error) {
-						return callback(error, true);
-					});
-				}, cb);
-			});
-		}
-
-		function putMapping(cb) {
-			mongo.findOne('analytics', {_type: 'mapping'}, function (error, mapping) {
-				if (error) return cb(error);
-				var mappings = {
-					index: '.kibana',
-				};
-				esClient.db.indices.exists(mappings, function (error, result) {
-					if (error || !result) {
-						mappings = {
-							index: '.kibana',
-							body: {
-								"mappings": mapping._json
-							}
-						};
-						esClient.db.indices.create(mappings, function (error) {
-							return cb(error, true);
-						});
-					}
-					else {
-						return cb(null, true);
-					}
-				});
-			});
-		}
-
-		function putSettings(esResponse, settings, cb) {
-			settings.env = {
-				"dashboard": true
-			};
-			settings.elasticsearch.status = "deployed";
-			settings.elasticsearch.version = esResponse.version.number;
-			mongo.save('analytics', settings, function (error) {
-				if (error) {
-					return cb(error);
-				}
-				return cb(null, true)
-			});
-		}
-
-	},
-
-	configureKibana: function (deployer, serviceOptions, cb) {
-		var dockerServiceName = serviceOptions.Name;
-		var serviceGroup, serviceName, serviceEnv, serviceType;
-		
-		var replicaCount;
-		if (serviceOptions.Labels) {
-			serviceGroup = serviceOptions.Labels['soajs.service.group'];
-			serviceName = serviceOptions.Labels['soajs.service.name'];
-			serviceEnv = serviceOptions.Labels['soajs.env.code'];
-		}
-		if (serviceGroup === 'soajs-core-services') {
-			serviceType = (serviceName === 'soajs_controller') ? 'controller' : 'service';
-			replicaCount = serviceOptions.Mode.Replicated.Replicas;
-		}
-		else if (serviceGroup === 'soajs-nginx') {
-			serviceType = 'nginx';
-			serviceName = 'nginx';
-			replicaCount = 1;
-		}
-		else {
-			return cb(null, true);
-		}
-		serviceEnv.replace(/[\/*?"<>|,.-]/g, "_");
-		
-		utilLog.log('Fetching analytics for ' + serviceName);
-		var analyticsArray = [];
-		async.parallel({
-			"filebeat": function (callback) {
-				lib.getServiceNames(dockerServiceName, deployer, replicaCount, function (error, serviceIPs) {
-					if (error) return cb(error);
-					var options = {
-						"$and": [
-							{
-								"_type": {
-									"$in": ["dashboard", "visualization", "search"]
-								}
-							},
-							{
-								"_service": serviceType
-							}
-						]
-
-					};
-
-					//insert index-patterns to kibana
-					serviceIPs.forEach(function (task_Name, key) {
-						task_Name.name = task_Name.name.replace(/[\/*?"<>|,.-]/g, "_");
-
-						//filebeat-service-environment-taskname-*
-						var filebeatIndex = require("../analytics/indexes/filebeat-index");
-						// var allIndex = require("../analytics/indexes/all-index");
-						// analyticsArray = analyticsArray.concat(
-						// 	[
-						// 		{
-						// 			index: {
-						// 				_index: '.kibana',
-						// 				_type: 'index-pattern',
-						// 				_id: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*"
-						// 			}
-						// 		},
-						// 		{
-						// 			title: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*",
-						// 			timeFieldName: '@timestamp',
-						// 			fields: filebeatIndex.fields,
-						// 			fieldFormatMap: filebeatIndex.fieldFormatMap
-						// 		}
-						// 	]
-						// );
-
-						// analyticsArray = analyticsArray.concat(
-						// 	[
-						// 		{
-						// 			index: {
-						// 				_index: '.kibana',
-						// 				_type: 'index-pattern',
-						// 				_id: '*-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*"
-						// 			}
-						// 		},
-						// 		{
-						// 			title: '*-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*",
-						// 			timeFieldName: '@timestamp',
-						// 			fields: allIndex.fields,
-						// 			fieldFormatMap: allIndex.fieldFormatMap
-						// 		}
-						// 	]
-						// );
-
-
-						if (key == 0) {
-							//filebeat-service-environment-*
-
-							analyticsArray = analyticsArray.concat(
-								[
-									{
-										index: {
-											_index: '.kibana',
-											_type: 'index-pattern',
-											_id: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + "*"
-										}
-									},
-									{
-										title: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + "*",
-										timeFieldName: '@timestamp',
-										fields: filebeatIndex.fields,
-										fieldFormatMap: filebeatIndex.fieldFormatMap
-									}
-								]
-							);
-
-
-							// analyticsArray = analyticsArray.concat(
-							// 	[
-							// 		{
-							// 			index: {
-							// 				_index: '.kibana',
-							// 				_type: 'index-pattern',
-							// 				_id: '*-' + serviceName + "-" + serviceEnv + "-" + "*"
-							// 			}
-							// 		},
-							// 		{
-							// 			title: '*-' + serviceName + "-" + serviceEnv + "-" + "*",
-							// 			timeFieldName: '@timestamp',
-							// 			fields: allIndex.fields,
-							// 			fieldFormatMap: allIndex.fieldFormatMap
-							// 		}
-							// 	]
-							// );
-
-							//filebeat-service-environment-*
-
-
-							// analyticsArray = analyticsArray.concat(
-							// 	[
-							// 		{
-							// 			index: {
-							// 				_index: '.kibana',
-							// 				_type: 'index-pattern',
-							// 				_id: 'filebeat-' + serviceName + '-' + "*"
-							// 			}
-							// 		},
-							// 		{
-							// 			title: 'filebeat-' + serviceName + '-' + "*",
-							// 			timeFieldName: '@timestamp',
-							// 			fields: filebeatIndex.fields,
-							// 			fieldFormatMap: filebeatIndex.fieldFormatMap
-							// 		}
-							// 	]
-							// );
-
-							// analyticsArray = analyticsArray.concat(
-							// 	[
-							// 		{
-							// 			index: {
-							// 				_index: '.kibana',
-							// 				_type: 'index-pattern',
-							// 				_id: '*-' + serviceName + "-" + "*"
-							// 			}
-							// 		},
-							// 		{
-							// 			title: '*-' + serviceName + "-" + "*",
-							// 			timeFieldName: '@timestamp',
-							// 			fields: allIndex.fields,
-							// 			fieldFormatMap: allIndex.fieldFormatMap
-							// 		}
-							// 	]
-							// );
-						}
-					});
-
-					//insert visualization, search and dashboard records per service to kibana
-					mongo.find(analyticsCollection, options, function (error, records) {
-						if (error) {
-							return callback(error);
-						}
-						records.forEach(function (oneRecord) {
-							if (Array.isArray(serviceIPs) && serviceIPs.length > 0) {
-								serviceIPs.forEach(function (task_Name) {
-									task_Name.name = task_Name.name.replace(/[\/*?"<>|,.-]/g, "_");
-									var serviceIndex;
-									if (oneRecord._type === "visualization" || oneRecord._type === "search") {
-										serviceIndex = serviceName + "-";
-										if (oneRecord._injector === "service") {
-											serviceIndex = serviceIndex + serviceEnv + "-" + "*";
-										}
-										else if (oneRecord._injector === "env") {
-											serviceIndex = "*-" + serviceEnv + "-" + "*";
-										}
-										else if (oneRecord._injector === "taskname") {
-											serviceIndex = serviceIndex + serviceEnv + "-" + task_Name.name + "-" + "*";
-										}
-									}
-
-									var injector;
-									if (oneRecord._injector === 'service') {
-										injector = serviceName + "-" + serviceEnv;
-									}
-									else if (oneRecord._injector === 'taskname') {
-										injector = task_Name.name;
-									}
-									else if (oneRecord._injector === 'env') {
-										injector = serviceEnv;
-									}
-									oneRecord = JSON.stringify(oneRecord);
-									if (serviceIndex) {
-										oneRecord = oneRecord.replace(/%serviceIndex%/g, serviceIndex);
-									}
-									if (injector) {
-										oneRecord = oneRecord.replace(/%injector%/g, injector);
-									}
-									oneRecord = oneRecord.replace(/%env%/g, serviceEnv);
-									oneRecord = JSON.parse(oneRecord);
-									var recordIndex = {
-										index: {
-											_index: '.kibana',
-											_type: oneRecord._type,
-											_id: oneRecord.id
-										}
-									};
-									analyticsArray = analyticsArray.concat([recordIndex, oneRecord._source]);
-								});
-							}
-						});
-						return callback(null, true);
-					});
-				});
-			},
-			"metricbeat": function (callback) {
-				var metricbeatIndex = require("../analytics/indexes/metricbeat-index");
-				var filebeatIndex= require("../analytics/indexes/filebeat-index");
-				analyticsArray = analyticsArray.concat(
-					[
-						{
-							index: {
-								_index: '.kibana',
-								_type: 'index-pattern',
-								_id: 'metricbeat-*'
-							}
-						},
-						{
-							title: 'metricbeat-*',
-							timeFieldName: '@timestamp',
-							fields: metricbeatIndex.fields,
-							fieldFormatMap: metricbeatIndex.fieldFormatMap
-						}
-					]
-				);
-
-				analyticsArray = analyticsArray.concat(
-					[
-						{
-							index: {
-								_index: '.kibana',
-								_type: 'index-pattern',
-								_id: 'filebeat-*-' + serviceEnv + "-*"
-							}
-						},
-						{
-							title: 'filebeat-*-' + serviceEnv + "-*",
-							timeFieldName: '@timestamp',
-							fields: filebeatIndex.fields,
-							fieldFormatMap: filebeatIndex.fieldFormatMap
-						}
-					]
-				);
-				var condition = {
-					"_shipper": "metricbeat"
-				};
-				mongo.find(analyticsCollection, condition, function (error, records) {
-					if (error) {
-						return callback(error);
-					}
-					if (records && records.length > 0) {
-						records.forEach(function(onRecord){
-							onRecord = JSON.stringify(onRecord);
-							onRecord = onRecord.replace(/%env%/g, serviceEnv);
-							onRecord = JSON.parse(onRecord);
-							var recordIndex = {
-								index: {
-									_index: '.kibana',
-									_type: onRecord._type,
-									_id: onRecord.id
-								}
-							};
-							analyticsArray = analyticsArray.concat([recordIndex, onRecord._source]);
-						});
-
-					}
-					return callback(null, true);
-
-				});
-			}
-		}, function (err) {
-			if (err) {
-				return cb(err);
-			}
-			function esBulk(array, cb) {
-				esClient.bulk(array, function (error, response) {
-					if (error) {
-						return cb(error);
-					}
-					return cb(null, response);
-				});
-			}
-
-			if (analyticsArray.length !== 0) {
-				esClient.checkIndex('.kibana', function (error, response) {
-					if (error) {
-						return cb(error);
-					}
-					if (response) {
-						esBulk(analyticsArray, cb);
-					}
-					else {
-						esClient.createIndex('.kibana', function (error) {
-							if (error) {
-								return cb(error);
-							}
-							esBulk(analyticsArray, cb);
-						})
-					}
-				});
-			}
-			else {
-				return cb(null, true);
-			}
+			//return cb(error, true);
+			analytics.activateAnalytics(opts, cb);
 		});
 	},
-
-	setDefaultIndex: function (cb) {
-		var index = {
-			index: ".kibana",
-			type: 'config',
-			body: {
-				doc: {"defaultIndex": "metricbeat-*"}
-			}
-		};
-		var condition = {
-			index: ".kibana",
-			type: 'config'
-		};
-		esClient.db.search(condition, function (err, res) {
-			if (err) {
-				return cb(err);
-			}
-			if (res && res.hits && res.hits.hits && res.hits.hits.length > 0) {
-				mongo.findOne(analyticsCollection, {"_type": "settings"}, function (err, result) {
-					if (err) {
-						return cb(err);
-					}
-					if (result && result.env && result.env.dashboard) {
-						index.id = res.hits.hits[0]._id;
-
-						async.parallel({
-							"updateES": function (call) {
-								esClient.db.update(index, call);
-							},
-							"updateSettings": function (call) {
-								var condition = {
-									"_type": "settings"
-								};
-								var criteria = {
-									"$set": {
-										"kibana": {
-											"version": index.id,
-											"status": "deployed",
-											"port": "32601"
-										},
-										"logstash": {
-											"dashboard": {
-												"status": "deployed"
-											}
-										},
-										"filebeat": {
-											"dashboard": {
-												"status": "deployed"
-											}
-										},
-										"metricbeat": {
-											"status": "deployed"
-										}
-									}
-								};
-								var options = {
-									"safe": true,
-									"multi": false,
-									"upsert": true
-								};
-								mongo.update('analytics', condition, criteria, options, call);
-							}
-						}, cb);
-					}
-					else {
-						return cb(null, true);
-					}
-				});
-			}
-			else {
-				setTimeout(function () {
-					lib.printProgress('Waiting for kibana to become available');
-					lib.setDefaultIndex(cb);
-				}, 1000);
-			}
-		});
-
-	},
-
+	
+	// configureElastic: function (deployer, serviceOptions, cb) {
+	// 	mongo.findOne('analytics', {_type: 'settings'}, function (error, settings) {
+	// 		if (error) {
+	// 			return cb(error);
+	// 		}
+	// 		if (settings && settings.elasticsearch && dbConfiguration.dbs.databases[settings.elasticsearch.db_name]) {
+	// 			var cluster = dbConfiguration.dbs.databases[settings.elasticsearch.db_name].cluster;
+	// 			if (!process.env.SOAJS_INSTALL_DEBUG){
+	// 				dbConfiguration.dbs.clusters[cluster].extraParam.log = [{
+	// 					type: 'stdio',
+	// 					levels: [] // remove the logs
+	// 				}];
+	// 			}
+	// 			esClient = new soajs.es(dbConfiguration.dbs.clusters[cluster]);
+	//
+	// 		}
+	// 		else {
+	// 			return cb(new Error("No Elastic db name found!"));
+	// 		}
+	// 		lib.getServiceNames(serviceOptions.Name, deployer, serviceOptions.Mode.Replicated.Replicas, function (error) {
+	// 			if (error) return cb(error);
+	// 			pingElastic(function (err, esResponse) {
+	// 				utilLog.log('Configuring elasticsearch ...');
+	// 				async.series({
+	// 					"mapping": function (callback) {
+	// 						putMapping(callback);
+	// 					},
+	// 					"template": function (callback) {
+	// 						putTemplate(callback);
+	// 					},
+	// 					"settings": function (callback) {
+	// 						putSettings(esResponse, settings, callback);
+	// 					}
+	// 				}, cb);
+	// 			});
+	// 		});
+	// 	});
+	//
+	// 	function pingElastic(cb) {
+	// 		esClient.ping(function (error) {
+	// 			if (error) {
+	// 				lib.printProgress('Waiting for ' + serviceOptions.Name + ' server to become connected');
+	// 				setTimeout(function () {
+	// 					pingElastic(cb);
+	// 				}, 2000);
+	// 			}
+	// 			else {
+	// 				//delete all indexes
+	// 				infoElastic(function (err, response) {
+	// 					if (error) {
+	// 						cb(err);
+	// 					}
+	// 					else {
+	// 						var params = {
+	// 							index: '_all'
+	// 						};
+	// 						esClient.db.indices.delete(params, function (err) {
+	// 							return cb(err, response);
+	// 						});
+	// 					}
+	// 				});
+	// 			}
+	// 		});
+	// 	}
+	//
+	// 	function infoElastic(cb) {
+	// 		esClient.db.info(function (error, response) {
+	// 			if (error) {
+	// 				lib.printProgress('Waiting for ' + serviceOptions.Name + ' server to become available');
+	// 				setTimeout(function () {
+	// 					infoElastic(cb);
+	// 				}, 3000);
+	// 			}
+	// 			else {
+	// 				return cb(null, response);
+	// 			}
+	// 		});
+	// 	}
+	//
+	// 	function putTemplate(cb) {
+	// 		mongo.find('analytics', {_type: 'template'}, function (error, templates) {
+	// 			if (error) return cb(error);
+	// 			async.each(templates, function (oneTemplate, callback) {
+	// 				if (oneTemplate._json.dynamic_templates && oneTemplate._json.dynamic_templates["system-process-cgroup-cpuacct-percpu"]) {
+	// 					oneTemplate._json.dynamic_templates["system.process.cgroup.cpuacct.percpu"] = oneTemplate._json.dynamic_templates["system-process-cgroup-cpuacct-percpu"];
+	// 					delete oneTemplate._json.dynamic_templates["system-process-cgroup-cpuacct-percpu"];
+	// 				}
+	// 				oneTemplate._json.settings["index.mapping.total_fields.limit"] = oneTemplate._json.settings["index-mapping-total_fields-limit"];
+	// 				oneTemplate._json.settings["index.refresh_interval"] = oneTemplate._json.settings["index-refresh_interval"];
+	// 				delete oneTemplate._json.settings["index-refresh_interval"];
+	// 				delete oneTemplate._json.settings["index-mapping-total_fields-limit"];
+	// 				var options = {
+	// 					'name': oneTemplate._name,
+	// 					'body': oneTemplate._json
+	// 				};
+	// 				esClient.db.indices.putTemplate(options, function (error) {
+	// 					return callback(error, true);
+	// 				});
+	// 			}, cb);
+	// 		});
+	// 	}
+	//
+	// 	function putMapping(cb) {
+	// 		mongo.findOne('analytics', {_type: 'mapping'}, function (error, mapping) {
+	// 			if (error) return cb(error);
+	// 			var mappings = {
+	// 				index: '.kibana',
+	// 			};
+	// 			esClient.db.indices.exists(mappings, function (error, result) {
+	// 				if (error || !result) {
+	// 					mappings = {
+	// 						index: '.kibana',
+	// 						body: {
+	// 							"mappings": mapping._json
+	// 						}
+	// 					};
+	// 					esClient.db.indices.create(mappings, function (error) {
+	// 						return cb(error, true);
+	// 					});
+	// 				}
+	// 				else {
+	// 					return cb(null, true);
+	// 				}
+	// 			});
+	// 		});
+	// 	}
+	//
+	// 	function putSettings(esResponse, settings, cb) {
+	// 		settings.env = {
+	// 			"dashboard": true
+	// 		};
+	// 		settings.elasticsearch.status = "deployed";
+	// 		settings.elasticsearch.version = esResponse.version.number;
+	// 		mongo.save('analytics', settings, function (error) {
+	// 			if (error) {
+	// 				return cb(error);
+	// 			}
+	// 			return cb(null, true)
+	// 		});
+	// 	}
+	//
+	// },
+	//
+	// configureKibana: function (deployer, serviceOptions, cb) {
+	// 	var dockerServiceName = serviceOptions.Name;
+	// 	var serviceGroup, serviceName, serviceEnv, serviceType;
+	//
+	// 	if (serviceOptions.Labels) {
+	// 		serviceGroup = serviceOptions.Labels['soajs.service.group'];
+	// 		serviceName = serviceOptions.Labels['soajs.service.repo.name'];
+	// 		serviceEnv = serviceOptions.Labels['soajs.env.code'];
+	// 	}
+	// 	if (serviceGroup === 'soajs-core-services') {
+	// 		serviceType = (serviceName === 'soajs_controller') ? 'controller' : 'service';
+	// 	}
+	// 	else if (serviceGroup === 'nginx') {
+	// 		serviceType = 'nginx';
+	// 		serviceName = 'nginx';
+	// 	}
+	// 	else {
+	// 		return cb(null, true);
+	// 	}
+	// 	serviceEnv.replace(/[\/*?"<>|,.-]/g, "_");
+	// 	var replicaCount = serviceOptions.Mode.Replicated.Replicas;
+	// 	utilLog.log('Fetching analytics for ' + serviceName);
+	// 	var analyticsArray = [];
+	// 	async.parallel({
+	// 		"filebeat": function (callback) {
+	// 			lib.getServiceNames(dockerServiceName, deployer, replicaCount, function (error, serviceIPs) {
+	// 				if (error) return cb(error);
+	// 				var options = {
+	// 					"$and": [
+	// 						{
+	// 							"_type": {
+	// 								"$in": ["dashboard", "visualization", "search"]
+	// 							}
+	// 						},
+	// 						{
+	// 							"_service": serviceType
+	// 						}
+	// 					]
+	//
+	// 				};
+	//
+	// 				//insert index-patterns to kibana
+	// 				serviceIPs.forEach(function (task_Name, key) {
+	// 					task_Name.name = task_Name.name.replace(/[\/*?"<>|,.-]/g, "_");
+	//
+	// 					//filebeat-service-environment-taskname-*
+	// 					var filebeatIndex = require("../analytics/indexes/filebeat-index");
+	// 					// var allIndex = require("../analytics/indexes/all-index");
+	// 					// analyticsArray = analyticsArray.concat(
+	// 					// 	[
+	// 					// 		{
+	// 					// 			index: {
+	// 					// 				_index: '.kibana',
+	// 					// 				_type: 'index-pattern',
+	// 					// 				_id: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*"
+	// 					// 			}
+	// 					// 		},
+	// 					// 		{
+	// 					// 			title: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*",
+	// 					// 			timeFieldName: '@timestamp',
+	// 					// 			fields: filebeatIndex.fields,
+	// 					// 			fieldFormatMap: filebeatIndex.fieldFormatMap
+	// 					// 		}
+	// 					// 	]
+	// 					// );
+	//
+	// 					// analyticsArray = analyticsArray.concat(
+	// 					// 	[
+	// 					// 		{
+	// 					// 			index: {
+	// 					// 				_index: '.kibana',
+	// 					// 				_type: 'index-pattern',
+	// 					// 				_id: '*-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*"
+	// 					// 			}
+	// 					// 		},
+	// 					// 		{
+	// 					// 			title: '*-' + serviceName + "-" + serviceEnv + "-" + task_Name.name + "-" + "*",
+	// 					// 			timeFieldName: '@timestamp',
+	// 					// 			fields: allIndex.fields,
+	// 					// 			fieldFormatMap: allIndex.fieldFormatMap
+	// 					// 		}
+	// 					// 	]
+	// 					// );
+	//
+	//
+	// 					if (key == 0) {
+	// 						//filebeat-service-environment-*
+	//
+	// 						analyticsArray = analyticsArray.concat(
+	// 							[
+	// 								{
+	// 									index: {
+	// 										_index: '.kibana',
+	// 										_type: 'index-pattern',
+	// 										_id: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + "*"
+	// 									}
+	// 								},
+	// 								{
+	// 									title: 'filebeat-' + serviceName + "-" + serviceEnv + "-" + "*",
+	// 									timeFieldName: '@timestamp',
+	// 									fields: filebeatIndex.fields,
+	// 									fieldFormatMap: filebeatIndex.fieldFormatMap
+	// 								}
+	// 							]
+	// 						);
+	//
+	//
+	// 						// analyticsArray = analyticsArray.concat(
+	// 						// 	[
+	// 						// 		{
+	// 						// 			index: {
+	// 						// 				_index: '.kibana',
+	// 						// 				_type: 'index-pattern',
+	// 						// 				_id: '*-' + serviceName + "-" + serviceEnv + "-" + "*"
+	// 						// 			}
+	// 						// 		},
+	// 						// 		{
+	// 						// 			title: '*-' + serviceName + "-" + serviceEnv + "-" + "*",
+	// 						// 			timeFieldName: '@timestamp',
+	// 						// 			fields: allIndex.fields,
+	// 						// 			fieldFormatMap: allIndex.fieldFormatMap
+	// 						// 		}
+	// 						// 	]
+	// 						// );
+	//
+	// 						//filebeat-service-environment-*
+	//
+	//
+	// 						// analyticsArray = analyticsArray.concat(
+	// 						// 	[
+	// 						// 		{
+	// 						// 			index: {
+	// 						// 				_index: '.kibana',
+	// 						// 				_type: 'index-pattern',
+	// 						// 				_id: 'filebeat-' + serviceName + '-' + "*"
+	// 						// 			}
+	// 						// 		},
+	// 						// 		{
+	// 						// 			title: 'filebeat-' + serviceName + '-' + "*",
+	// 						// 			timeFieldName: '@timestamp',
+	// 						// 			fields: filebeatIndex.fields,
+	// 						// 			fieldFormatMap: filebeatIndex.fieldFormatMap
+	// 						// 		}
+	// 						// 	]
+	// 						// );
+	//
+	// 						// analyticsArray = analyticsArray.concat(
+	// 						// 	[
+	// 						// 		{
+	// 						// 			index: {
+	// 						// 				_index: '.kibana',
+	// 						// 				_type: 'index-pattern',
+	// 						// 				_id: '*-' + serviceName + "-" + "*"
+	// 						// 			}
+	// 						// 		},
+	// 						// 		{
+	// 						// 			title: '*-' + serviceName + "-" + "*",
+	// 						// 			timeFieldName: '@timestamp',
+	// 						// 			fields: allIndex.fields,
+	// 						// 			fieldFormatMap: allIndex.fieldFormatMap
+	// 						// 		}
+	// 						// 	]
+	// 						// );
+	// 					}
+	// 				});
+	//
+	// 				//insert visualization, search and dashboard records per service to kibana
+	// 				mongo.find(analyticsCollection, options, function (error, records) {
+	// 					if (error) {
+	// 						return callback(error);
+	// 					}
+	// 					records.forEach(function (oneRecord) {
+	// 						if (Array.isArray(serviceIPs) && serviceIPs.length > 0) {
+	// 							serviceIPs.forEach(function (task_Name) {
+	// 								task_Name.name = task_Name.name.replace(/[\/*?"<>|,.-]/g, "_");
+	// 								var serviceIndex;
+	// 								if (oneRecord._type === "visualization" || oneRecord._type === "search") {
+	// 									serviceIndex = serviceName + "-";
+	// 									if (oneRecord._injector === "service") {
+	// 										serviceIndex = serviceIndex + serviceEnv + "-" + "*";
+	// 									}
+	// 									else if (oneRecord._injector === "env") {
+	// 										serviceIndex = "*-" + serviceEnv + "-" + "*";
+	// 									}
+	// 									else if (oneRecord._injector === "taskname") {
+	// 										serviceIndex = serviceIndex + serviceEnv + "-" + task_Name.name + "-" + "*";
+	// 									}
+	// 								}
+	//
+	// 								var injector;
+	// 								if (oneRecord._injector === 'service') {
+	// 									injector = serviceName + "-" + serviceEnv;
+	// 								}
+	// 								else if (oneRecord._injector === 'taskname') {
+	// 									injector = task_Name.name;
+	// 								}
+	// 								else if (oneRecord._injector === 'env') {
+	// 									injector = serviceEnv;
+	// 								}
+	// 								oneRecord = JSON.stringify(oneRecord);
+	// 								if (serviceIndex) {
+	// 									oneRecord = oneRecord.replace(/%serviceIndex%/g, serviceIndex);
+	// 								}
+	// 								if (injector) {
+	// 									oneRecord = oneRecord.replace(/%injector%/g, injector);
+	// 								}
+	// 								oneRecord = oneRecord.replace(/%env%/g, serviceEnv);
+	// 								oneRecord = JSON.parse(oneRecord);
+	// 								var recordIndex = {
+	// 									index: {
+	// 										_index: '.kibana',
+	// 										_type: oneRecord._type,
+	// 										_id: oneRecord.id
+	// 									}
+	// 								};
+	// 								analyticsArray = analyticsArray.concat([recordIndex, oneRecord._source]);
+	// 							});
+	// 						}
+	// 					});
+	// 					return callback(null, true);
+	// 				});
+	// 			});
+	// 		},
+	// 		"metricbeat": function (callback) {
+	// 			var metricbeatIndex = require("../analytics/indexes/metricbeat-index");
+	// 			var filebeatIndex= require("../analytics/indexes/filebeat-index");
+	// 			analyticsArray = analyticsArray.concat(
+	// 				[
+	// 					{
+	// 						index: {
+	// 							_index: '.kibana',
+	// 							_type: 'index-pattern',
+	// 							_id: 'metricbeat-*'
+	// 						}
+	// 					},
+	// 					{
+	// 						title: 'metricbeat-*',
+	// 						timeFieldName: '@timestamp',
+	// 						fields: metricbeatIndex.fields,
+	// 						fieldFormatMap: metricbeatIndex.fieldFormatMap
+	// 					}
+	// 				]
+	// 			);
+	//
+	// 			analyticsArray = analyticsArray.concat(
+	// 				[
+	// 					{
+	// 						index: {
+	// 							_index: '.kibana',
+	// 							_type: 'index-pattern',
+	// 							_id: 'filebeat-*-' + serviceEnv + "-*"
+	// 						}
+	// 					},
+	// 					{
+	// 						title: 'filebeat-*-' + serviceEnv + "-*",
+	// 						timeFieldName: '@timestamp',
+	// 						fields: filebeatIndex.fields,
+	// 						fieldFormatMap: filebeatIndex.fieldFormatMap
+	// 					}
+	// 				]
+	// 			);
+	// 			var condition = {
+	// 				"_shipper": "metricbeat"
+	// 			};
+	// 			mongo.find(analyticsCollection, condition, function (error, records) {
+	// 				if (error) {
+	// 					return callback(error);
+	// 				}
+	// 				if (records && records.length > 0) {
+	// 					records.forEach(function(onRecord){
+	// 						onRecord = JSON.stringify(onRecord);
+	// 						onRecord = onRecord.replace(/%env%/g, serviceEnv);
+	// 						onRecord = JSON.parse(onRecord);
+	// 						var recordIndex = {
+	// 							index: {
+	// 								_index: '.kibana',
+	// 								_type: onRecord._type,
+	// 								_id: onRecord.id
+	// 							}
+	// 						};
+	// 						analyticsArray = analyticsArray.concat([recordIndex, onRecord._source]);
+	// 					});
+	//
+	// 				}
+	// 				return callback(null, true);
+	//
+	// 			});
+	// 		}
+	// 	}, function (err) {
+	// 		if (err) {
+	// 			return cb(err);
+	// 		}
+	// 		function esBulk(array, cb) {
+	// 			esClient.bulk(array, function (error, response) {
+	// 				if (error) {
+	// 					return cb(error);
+	// 				}
+	// 				return cb(null, response);
+	// 			});
+	// 		}
+	//
+	// 		if (analyticsArray.length !== 0) {
+	// 			esClient.checkIndex('.kibana', function (error, response) {
+	// 				if (error) {
+	// 					return cb(error);
+	// 				}
+	// 				if (response) {
+	// 					esBulk(analyticsArray, cb);
+	// 				}
+	// 				else {
+	// 					esClient.createIndex('.kibana', function (error) {
+	// 						if (error) {
+	// 							return cb(error);
+	// 						}
+	// 						esBulk(analyticsArray, cb);
+	// 					})
+	// 				}
+	// 			});
+	// 		}
+	// 		else {
+	// 			return cb(null, true);
+	// 		}
+	// 	});
+	// },
+	//
+	// setDefaultIndex: function (cb) {
+	// 	var index = {
+	// 		index: ".kibana",
+	// 		type: 'config',
+	// 		body: {
+	// 			doc: {"defaultIndex": "metricbeat-*"}
+	// 		}
+	// 	};
+	// 	var condition = {
+	// 		index: ".kibana",
+	// 		type: 'config'
+	// 	};
+	// 	esClient.db.search(condition, function (err, res) {
+	// 		if (err) {
+	// 			return cb(err);
+	// 		}
+	// 		if (res && res.hits && res.hits.hits && res.hits.hits.length > 0) {
+	// 			mongo.findOne(analyticsCollection, {"_type": "settings"}, function (err, result) {
+	// 				if (err) {
+	// 					return cb(err);
+	// 				}
+	// 				if (result && result.env && result.env.dashboard) {
+	// 					index.id = res.hits.hits[0]._id;
+	//
+	// 					async.parallel({
+	// 						"updateES": function (call) {
+	// 							esClient.db.update(index, call);
+	// 						},
+	// 						"updateSettings": function (call) {
+	// 							var condition = {
+	// 								"_type": "settings"
+	// 							};
+	// 							var criteria = {
+	// 								"$set": {
+	// 									"kibana": {
+	// 										"version": index.id,
+	// 										"status": "deployed",
+	// 										"port": "32601"
+	// 									},
+	// 									"logstash": {
+	// 										"dashboard": {
+	// 											"status": "deployed"
+	// 										}
+	// 									},
+	// 									"filebeat": {
+	// 										"dashboard": {
+	// 											"status": "deployed"
+	// 										}
+	// 									},
+	// 									"metricbeat": {
+	// 										"status": "deployed"
+	// 									}
+	// 								}
+	// 							};
+	// 							var options = {
+	// 								"safe": true,
+	// 								"multi": false,
+	// 								"upsert": true
+	// 							};
+	// 							mongo.update('analytics', condition, criteria, options, call);
+	// 						}
+	// 					}, cb);
+	// 				}
+	// 				else {
+	// 					return cb(null, true);
+	// 				}
+	// 			});
+	// 		}
+	// 		else {
+	// 			setTimeout(function () {
+	// 				lib.printProgress('Waiting for kibana to become available');
+	// 				lib.setDefaultIndex(cb);
+	// 			}, 1000);
+	// 		}
+	// 	});
+	//
+	// },
+	
 	closeDbCon: function (cb) {
 		mongo.closeDb();
-		if (esClient) {
-			esClient.close();
-		}
 		return cb();
 	}
 };

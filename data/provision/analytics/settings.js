@@ -10,7 +10,8 @@ var settings = [
 	    "mongoImported": true,
 	    "elasticsearch": {
 		    "security": "%es_security%",
-		    "db_name": "%db_name%"
+		    "db_name": "%db_name%",
+		    "external": "%external%"
         }
     }
 ];

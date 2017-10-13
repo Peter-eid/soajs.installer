@@ -3,7 +3,8 @@ var gConfig = require("../../config.js");
 var src = {
 	owner: 'soajs',
 	repo: 'soajs.dashboard',
-	branch: gConfig.git.branch
+	//branch: gConfig.git.branch
+	branch: "feature/AN-89"
 };
 
 var config = {

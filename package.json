@@ -29,6 +29,7 @@
     "dockerode": "*",
     "gridfs-stream": "*",
     "kubernetes-client": "aff04/kubernetes-client.git#v3.10.1",
+    "soajs.analytics": "soajs/soajs.analytics.git#feature/AN-81",
     "mkdirp": "*",
     "ncp": "*",
     "npm": "*",

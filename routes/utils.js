@@ -224,7 +224,6 @@ module.exports = {
 				    ];
 			    }
 		    }
-		    delete es_clusters.es_Ext;
 	    }
         delete clusters.replicaSet;
         delete clusters.mongoExt;
@@ -282,9 +281,19 @@ module.exports = {
 		   
 	    var uid = uuid.v4();
 	    var esCluster = fs.readFileSync(folder + "resources/es.js", "utf8");
+	    //todo check this
 	    if (es_clusters) {
 		    esCluster = esCluster.replace(/"%es_analytics_cluster%"/g, JSON.stringify(es_clusters, null, 2));
 		    esCluster = esCluster.replace(/"%es_analytics_cluster_name%"/g, JSON.stringify("es_analytics_cluster_" + uid), null ,2);
+		    if(es_clusters.es_Ext){
+			    settings = settings.replace(/"%external%"/g, "true", null, 2);
+		    }
+		    else {
+			    settings = settings.replace(/"%external%"/g, "false", null, 2);
+		    }
+		    delete es_clusters.es_Ext;
+		    envData = envData.replace(/"%es_analytics_cluster%"/g, JSON.stringify(es_clusters, null, 2));
+		    envData = envData.replace(/"%es_analytics_cluster_name%"/g, JSON.stringify("es_analytics_cluster_" + uid), null ,2);
 		    envData = envData.replace(/%es_database_name%/g, "es_analytics_db_" + uid);
 		    envData = envData.replace(/"%databases_value%"/g, JSON.stringify({
 			    "cluster": "es_analytics_cluster_" + uid,
@@ -300,8 +309,9 @@ module.exports = {
 	    else {
 		    esCluster = "'use strict';" + os.EOL + os.EOL + "module.exports =" + JSON.stringify({}) + ";";
 		    envData = envData.replace(/"%es_database_name%": "%databases_value%",/g, '');
-		    settings = settings.replace(/"db_name": "%db_name%"/g, '');
+		    settings = settings.replace(/"db_name": "%db_name%",/g, '');
 		    settings = settings.replace(/"security": "%es_security%",/g, '');
+		    settings = settings.replace(/"%external%"/g, "false", null ,2);
 	    }
 	    fs.writeFile(folder + "resources/es.js", esCluster, "utf8");
 	    fs.writeFile(folder + "analytics/settings.js", settings, "utf8");
@@ -332,6 +342,10 @@ module.exports = {
         tntData = tntData.replace(/%extKey2%/g, body.security.extKey2);
         fs.writeFile(folder + "tenants/owner.js", tntData, "utf8");
 
+        //update image
+	    var catalogs = fs.readFileSync(folder + "catalogs/index.js", "utf8");
+	    catalogs = catalogs.replace(/%imagePrefix%/g, body.deployment.imagePrefix);
+	    fs.writeFile(folder + "catalogs/index.js", catalogs, "utf8");
         //remove unneeded file
         fs.unlinkSync(folder + "tenants/info.js");
     },
@@ -577,18 +591,18 @@ module.exports = {
 	                body.deployment.docker.certificatesFolder = body.deployment.docker.certificatesFolder.join("/");
                     envs["SOAJS_DOCKER_CERTS_PATH"] = body.deployment.docker.containerDir || body.deployment.docker.certificatesFolder + "/";
                 }
+                //check this
 
-	            envs['SOAJS_DEPLOY_ANALYTICS'] = body.deployment.deployAnalytics ? true : false;
-
-	            if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = body.clusters.es_Ext || false;
-		            envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers);
-		            envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam);
-		            envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam);
-	            }
-	            else {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = false
-	            }
+	            envs['SOAJS_DEPLOY_ANALYTICS'] = !!body.deployment.deployAnalytics;
+	            // if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.ext || false;
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers); //do i need this?
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam); //do i need this?
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam); //do i need this?
+	            // }
+	            // else {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = false
+	            // }
                 //add readiness probes environment variables
                if(body.deployment.readinessProbe){
                    envs["KUBE_INITIAL_DELAY"] = body.deployment.readinessProbe.initialDelaySeconds;
@@ -694,17 +708,17 @@ module.exports = {
 		            envs["SOAJS_DOCKER_CERTS_PATH"] = body.deployment.docker.containerDir || body.deployment.docker.certificatesFolder + "/";
 	            }
 	            
-	            envs['SOAJS_DEPLOY_ANALYTICS'] = body.deployment.deployAnalytics ? true : false;
-
-	            if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.es_Ext || false;
-		            envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers);
-		            envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam);
-		            envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam);
-	            }
-	            else {
-		            envs['SOAJS_ELASTIC_EXTERNAL'] = false
-	            }
+	            envs['SOAJS_DEPLOY_ANALYTICS'] = !!body.deployment.deployAnalytics;
+				//check this
+	            // if (body.es_clusters && Object.keys(body.es_clusters).length > 0) {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = body.es_clusters.external || false;
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_SERVERS'] = JSON.stringify(body.es_clusters.servers);
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_URLPARAM'] = JSON.stringify(body.es_clusters.URLParam);
+		         //    envs['SOAJS_ELASTIC_EXTERNAL_EXTRAPARAM'] = JSON.stringify(body.es_clusters.extraParam);
+	            // }
+	            // else {
+		         //    envs['SOAJS_ELASTIC_EXTERNAL'] = false
+	            // }
                 //add readiness probes environment variables
                if(body.deployment.readinessProbe){
                    envs["KUBE_INITIAL_DELAY"] = body.deployment.readinessProbe.initialDelaySeconds;

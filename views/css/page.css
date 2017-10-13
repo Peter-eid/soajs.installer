@@ -304,6 +304,12 @@ table.bulletin th {
     max-width: 975px;
     overflow-x: scroll;
 }
+#clusterSeperator {
+    height: 1px;
+    background-color: #999;
+    border: none;
+    color: #999; /* old IE */
+}
 
 a.nonhighlightedDriver{
     display: block;

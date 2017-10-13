@@ -75,24 +75,26 @@ function deploySOAJS(deployer) {
 			});
 		}, function (error, result) {
 			if (error) throw new Error (error);
-			if (config.analytics === "true"){
-				lib.setDefaultIndex(function (err){
-					if (err){
-						throw new Error (err)
+			if (config.analytics === "true") {
+				lib.deployAnalytics(deployer, function (err) {
+					if (err) {
+						console.log(JSON.stringify(err, null, 2))
+						throw new Error(err);
 					}
-					lib.closeDbCon(function(){
-						utilLog.log('SOAJS Has been deployed.');
-						process.exit();
-					});
+					else {
+						lib.closeDbCon(function(){
+							utilLog.log('SOAJS Has been deployed.');
+							process.exit();
+						});
+					}
 				});
 			}
 			else {
-				lib.closeDbCon(function(){
+				lib.closeDbCon(function () {
 					utilLog.log('SOAJS Has been deployed.');
 					process.exit();
 				});
 			}
-			
 		});
 	});
 }
