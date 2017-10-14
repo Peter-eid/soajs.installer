@@ -338,7 +338,7 @@ clustersApp.controller('clustersCtrl', ['$scope', '$timeout', 'ngDataApi', funct
 						"apiVersion": "5.x"
 					}, null, 2)
 				};
-				if(response.es_security && !$scope.es_clusters.es_Ext){
+				if(response.es_security && Object.keys(response.es_security).length > 0 && !$scope.es_clusters.es_Ext){
 					$scope.isLocalEsSecured = true;
 				}
 				if($scope.es_clusters.es_Ext){

@@ -217,34 +217,41 @@ var routes = {
         });
     },
 	"postEsClusters": function (req, res) {
-		utils.verifyEsIP(req,res, function(error){
-			if(error){
-				if(error === "noIP")
-					return res.json(req.soajs.buildResponse({code: 601, msg: "You have added a host with no hostname. Please provide a valid hostname."}));
+		utils.verifyEsIP(req, res, function (error) {
+			if (error) {
+				if (error === "noIP")
+					return res.json(req.soajs.buildResponse({
+						code: 601,
+						msg: "You have added a host with no hostname. Please provide a valid hostname."
+					}));
 				else
-					return res.json(req.soajs.buildResponse({code: 601, msg: "Invalid machine IP address: " + error + ". Provide the machine's external IP address."}));
+					return res.json(req.soajs.buildResponse({
+						code: 601,
+						msg: "Invalid machine IP address: " + error + ". Provide the machine's external IP address."
+					}));
 			}
-			utils.updateCustomData(req, res, req.soajs.inputmaskData.es_clusters, "es_clusters", function () {
-				if (req.soajs.inputmaskData.es_security) {
-					var es_security = {};
-					var users = Object.keys(req.soajs.inputmaskData.es_security);
-					
-					for (var i = 0; i < users.length - 1; i++) {
-						for (var j = i + 1; j < users.length; j++) {
-							if (req.soajs.inputmaskData.es_security[users[i]].username === req.soajs.inputmaskData.es_security[users[j]].username) {
-								return res.json(req.soajs.buildResponse({code: 602, msg: "Duplicate username detected in ElasticSearch Security, Please use unique Username for each user."}));
-							}
+			var es_security = {};
+			if (req.soajs.inputmaskData.es_security) {
+				var users = Object.keys(req.soajs.inputmaskData.es_security);
+				
+				for (var i = 0; i < users.length - 1; i++) {
+					for (var j = i + 1; j < users.length; j++) {
+						if (req.soajs.inputmaskData.es_security[users[i]].username === req.soajs.inputmaskData.es_security[users[j]].username) {
+							return res.json(req.soajs.buildResponse({
+								code: 602,
+								msg: "Duplicate username detected in ElasticSearch Security, Please use unique Username for each user."
+							}));
 						}
 					}
-					users.forEach(function (oneUser) {
-						if(req.soajs.inputmaskData.es_security[oneUser].username && req.soajs.inputmaskData.es_security[oneUser].password){
-							es_security[oneUser] = SHA256(req.soajs.inputmaskData.es_security[oneUser].username + ":" + req.soajs.inputmaskData.es_security[oneUser].password)
-						}
-					});
-					utils.updateCustomData(req, res, es_security, "es_security");
-				} else {
-					return res.json(req.soajs.buildResponse(null, true));
 				}
+				users.forEach(function (oneUser) {
+					if (req.soajs.inputmaskData.es_security[oneUser].username && req.soajs.inputmaskData.es_security[oneUser].password) {
+						es_security[oneUser] = SHA256(req.soajs.inputmaskData.es_security[oneUser].username + ":" + req.soajs.inputmaskData.es_security[oneUser].password)
+					}
+				});
+			}
+			utils.updateCustomData(req, res, req.soajs.inputmaskData.es_clusters, "es_clusters", function () {
+				utils.updateCustomData(req, res, es_security, "es_security");
 			});
 		});
 	},
