@@ -353,18 +353,8 @@ var lib = {
     },
 	
 	/**
-	 * Customizes a new service recipe used to deploy the Elk services of the dashboard environment
 	 * @returns {*}
 	 */
-	updateElkeRecipes (allRecipes) {
-		for (var y = allRecipes.length - 1; y >= 0; y--) {
-			if (allRecipes[y].type === 'elk' || allRecipes[y].type === 'es') {
-				allRecipes.splice(y, 1);
-			}
-		}
-		return allRecipes;
-	},
-
     importData: function (mongoInfo, cb) {
         utilLog.log('Importing provision data to:', profile2.servers[0].host + ":" + profile2.servers[0].port);
         var dataImportFile = __dirname + "/../dataImport/";
@@ -385,7 +375,6 @@ var lib = {
                     //update the catalog recipes to include data used for dashboard environment deployment
                     dashboardCatalogEntries[0] = lib.updateServiceRecipe(dashboardCatalogEntries[0]);
                     dashboardCatalogEntries[1] = lib.updateNginxRecipe(dashboardCatalogEntries[1]);
-                    dashboardCatalogEntries = lib.updateElkeRecipes(catalogDefaulEntries);
                     //add catalogs to the database
                     mongo.insert("catalogs", dashboardCatalogEntries, true, (error, catalogEntries) => {
                         if(error){
