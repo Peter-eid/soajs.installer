@@ -965,7 +965,10 @@ module.exports = {
                 var services = ["dashboard-soajsdata", "dashboard_soajs_oauth", "dashboard_soajs_urac", "dashboard_soajs_dashboard", "dashboard-controller", "dashboard_nginx"];
 
                 if(body.deployment.deployAnalytics){
-                	var analyticsContaiers = ["kibana", "dashboard-filebeat", "soajs-analytics-elasticsearch", "soajs-metricbeat", "dashboard-logstash"];
+	                var analyticsContaiers = ["soajs-kibana", "dashboard-filebeat", "soajs-metricbeat", "dashboard-logstash"];
+	                if(body.es_clusters && !body.es_clusters.es_Ext){
+	                	analyticsContaiers.push("soajs-analytics-elasticsearch");
+	                }
 	                services = services.concat(analyticsContaiers);
                 }
 
@@ -1032,7 +1035,10 @@ module.exports = {
                 var services = ["dashboard-soajsdata", "dashboard-oauth-v1", "dashboard-urac-v2", "dashboard-dashboard-v1", "dashboard-controller-v1", "dashboard-nginx"];
 
 	            if(body.deployment.deployAnalytics){
-		            var analyticsContaiers = ["kibana", "soajs-analytics-elasticsearch", "dashboard-logstash"];
+		            var analyticsContaiers = ["soajs-kibana", "dashboard-logstash", "dashboard-filebeat"];
+		            if(body.es_clusters && !body.es_clusters.es_Ext){
+			            analyticsContaiers.push("soajs-analytics-elasticsearch");
+		            }
 		            services = services.concat(analyticsContaiers);
 	            }
 
